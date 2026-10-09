@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        For security vulnerabilities, do not open an issue. See [SECURITY.md](https://github.com/raaqimorg/naqua/blob/main/.github/SECURITY.md). For a wrong rate or status, use the Data correction form.
+        For security vulnerabilities, do not open an issue. See [SECURITY.md](https://github.com/raaqimorg/naqua-api/blob/main/.github/SECURITY.md). For a wrong rate or status, use the Data correction form.
   - type: dropdown
     id: area
     attributes:
@@ -52,7 +52,7 @@ body:
       value: |
         ### If you plan to send the fix
 
-        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua/blob/main/.github/CONTRIBUTING.md).
+        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua-api/blob/main/.github/CONTRIBUTING.md).
   - type: textarea
     id: root-cause
     attributes:
@@ -77,5 +77,5 @@ body:
     id: labels
     attributes:
       label: Labels
-      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua/labels), each component and topic this touches. A maintainer applies them.
+      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua-api/labels), each component and topic this touches. A maintainer applies them.
       placeholder: "⚙️ api, 🧮 calculation"

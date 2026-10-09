@@ -2,7 +2,7 @@
 
 ## Start with an issue
 
-Every pull request links to an [issue](https://github.com/raaqimorg/naqua/issues). Pick the form that fits:
+Every pull request links to an [issue](https://github.com/raaqimorg/naqua-api/issues). Pick the form that fits:
 
 - **Bug report:** the API, a calculation, the docs, or the local setup behaves incorrectly.
 - **Data correction:** a rate, a status, or a company name differs from the published source.
@@ -19,7 +19,7 @@ If you only want to report something, the form asks for what happened and its im
 - **Trade-offs:** whether the fix can add new bugs, hide other bugs, or only work around the issue. Also say what else the changed code touches.
 - **Request and response:** for a change that a client can see, the request, and the response before and after.
 
-Labels give the scope of an issue or a pull request. Use one type (`🐛 bug`, `✨ enhancement`, and so on), and every component and topic that it touches. Pick them from the [label list](https://github.com/raaqimorg/naqua/labels). On GitHub, only people with write or triage access can set labels, so write the labels that fit in the form's Labels field, or in the template's Labels section, and a maintainer applies them. A pull request gets its component and topic labels automatically from the files that it changes.
+Labels give the scope of an issue or a pull request. Use one type (`🐛 bug`, `✨ enhancement`, and so on), and every component and topic that it touches. Pick them from the [label list](https://github.com/raaqimorg/naqua-api/labels). On GitHub, only people with write or triage access can set labels, so write the labels that fit in the form's Labels field, or in the template's Labels section, and a maintainer applies them. A pull request gets its component and topic labels automatically from the files that it changes.
 
 For a large or significant change, wait until the maintainers agree on the approach in the issue before you write code, so that your work is not wasted. The maintainers show their agreement with the `✅ accepted` label. Keep each pull request small, with one concern.
 

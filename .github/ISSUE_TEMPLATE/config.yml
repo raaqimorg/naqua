@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/raaqimorg/naqua/blob/main/.github/SECURITY.md
+    url: https://github.com/raaqimorg/naqua-api/blob/main/.github/SECURITY.md
     about: Do not open a public issue. Follow the disclosure process here.
   - name: API reference
     url: https://api.trynaqua.com/docs

@@ -8,7 +8,7 @@ Closes #
 
 ## Labels
 
-<!-- List every label that fits from https://github.com/raaqimorg/naqua/labels: one type, and each component and topic that this PR touches. A maintainer applies them. -->
+<!-- List every label that fits from https://github.com/raaqimorg/naqua-api/labels: one type, and each component and topic that this PR touches. A maintainer applies them. -->
 
 ## Request and response
 

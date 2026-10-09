@@ -21,7 +21,7 @@ body:
       value: |
         ### If you plan to build it
 
-        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua/blob/main/.github/CONTRIBUTING.md).
+        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua-api/blob/main/.github/CONTRIBUTING.md).
   - type: textarea
     id: limitation
     attributes:
@@ -56,5 +56,5 @@ body:
     id: labels
     attributes:
       label: Labels
-      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua/labels), each component and topic this touches. A maintainer applies them.
+      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua-api/labels), each component and topic this touches. A maintainer applies them.
       placeholder: "⚙️ api, 📐 contract"
