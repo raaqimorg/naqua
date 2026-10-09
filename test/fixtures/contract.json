@@ -1,22 +1,17 @@
 {
   "index": [
     {
-      "status": 200,
+      "status": 302,
       "headers": {
         "access-control-allow-origin": "*",
         "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
-        "content-type": "application/json",
+        "location": "/docs",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=15552000; includeSubDomains",
         "x-content-type-options": "nosniff",
         "x-frame-options": "SAMEORIGIN"
       },
-      "body": {
-        "name": "Naqwa Purification API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "openapi": "/openapi.json"
-      }
+      "body": ""
     }
   ],
   "health": [
@@ -1107,7 +1102,7 @@
       "body": {
         "openapi": "3.1.0",
         "info": {
-          "title": "Naqwa Purification API",
+          "title": "Naqua Purification API",
           "version": "1.0.0",
           "description": "Stock purification rates for Saudi (Tadawul) companies, and a calculator for the amount to purify. Every error carries a stable `code` and a message in Arabic and English. Requests under /v1 are limited to 60 per minute per IP."
         },

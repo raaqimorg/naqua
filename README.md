@@ -1,4 +1,4 @@
-# نقوة | Naqwa — Purification API
+# نقوة | Naqua — Purification API
 
 Public API for Saudi (Tadawul) stock purification: the published purification
 rate for each company and year, and a calculator for how much to purify for a
@@ -53,6 +53,8 @@ For interactive docs that send requests to your local server, set
 `PUBLIC_URL=http://localhost:3000` before starting it. Environment variables
 must be set in your shell or hosting dashboard; `.env` files are not loaded
 automatically.
+
+The root URL `/` redirects to the interactive documentation at `/docs`.
 
 ## Endpoints
 
@@ -225,7 +227,7 @@ is no build artifact, so what runs in production is exactly what the tests ran.
     curl -s -o /dev/null -w '%{http_code}\n' -H "X-Forwarded-For: 198.51.100.$i" https://api.trynaqua.com/v1/meta
   done | sort | uniq -c
   ```
-- **Rollback:** Render → `naqwa-api` → Events → an earlier deploy → Rollback.
+- **Rollback:** Render → `naqua-api` → Events → an earlier deploy → Rollback.
 
 ## License
 
