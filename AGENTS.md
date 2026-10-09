@@ -9,7 +9,6 @@ format and deployment. Read it first. This file lists what is easy to get wrong.
 pnpm dev            # node --watch src/server.ts on :3000
 pnpm check          # typecheck + lint + test (what CI runs)
 pnpm data:format    # validate data/companies.json and restore its canonical layout
-pnpm data:import    # regenerate the dataset from the website's pure-percentages.json
 ```
 
 ## Rules

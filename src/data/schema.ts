@@ -1,4 +1,5 @@
 import { Result, Schema, SchemaIssue } from 'effect';
+import { parseIsoDate } from '../domain/dates.ts';
 
 // `public-sector` is the site's former `Aramco` category: a state-owned company
 // that the methodology treats as permissible regardless of its financials.
@@ -6,7 +7,9 @@ export const STATUSES = ['pure', 'mixed', 'non-pure', 'public-sector'] as const;
 export const StatusSchema = Schema.Literals(STATUSES);
 export type Status = typeof StatusSchema.Type;
 
-const IsoDateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { message: 'Expected YYYY-MM-DD.' }));
+const IsoDateSchema = Schema.String.check(
+  Schema.makeFilter((value) => parseIsoDate(value) !== null || 'Expected a real calendar date in YYYY-MM-DD form.'),
+);
 const TickerSchema = Schema.Int.check(Schema.isBetween({ minimum: 1000, maximum: 9999 }));
 const NameSchema = Schema.Trim.check(Schema.isNonEmpty());
 

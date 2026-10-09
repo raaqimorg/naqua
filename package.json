@@ -21,9 +21,7 @@
     "typecheck": "tsc",
     "lint": "eslint .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
-    "data:import": "node scripts/import-legacy.ts",
-    "data:format": "node scripts/format-dataset.ts",
-    "fixture:capture": "bun scripts/capture-legacy-fixture.ts"
+    "data:format": "node scripts/format-dataset.ts"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.0",

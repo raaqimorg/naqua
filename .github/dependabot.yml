@@ -4,9 +4,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The current typescript-eslint release rejects TypeScript 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     groups:
       # Pinned exactly and released together. An upgrade also needs
-      # SCALAR_VERSION in src/app.ts updated by hand (see CLAUDE.md).
+      # SCALAR_VERSION in src/app.ts updated by hand (see AGENTS.md).
       effect:
         patterns: ["effect", "@effect/*"]
       dev-dependencies:

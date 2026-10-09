@@ -19,6 +19,41 @@ repository's license; see [License](#license).
 - **Configured deployment URL:** `https://api.trynaqua.com` — interactive docs at `/docs`, OpenAPI 3.1 at `/openapi.json`
 - **Stack:** Node 24 (runs the TypeScript directly, no build step), [Effect](https://effect.website) 4 for the HTTP API, validation and OpenAPI
 
+## Run locally
+
+Requires Node 24+ and pnpm 12.4.2 (pinned in `package.json`). With Node 24's
+Corepack installed:
+
+```bash
+git clone https://github.com/Mohammedbbk/naqua-api.git
+cd naqua-api
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Open [the local API docs](http://localhost:3000/docs), or try:
+
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/v1/companies/2330/rates/2023
+```
+
+The committed dataset covers **2015–2024** for **219 companies**. Holdings
+outside that coverage cannot be calculated. `stillOwned` uses the dataset's
+end date, rather than today's date.
+
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | HTTP listening port |
+| `PUBLIC_URL` | `https://api.trynaqua.com` | Server URL shown in OpenAPI and interactive docs |
+| `REQUESTS_PER_MINUTE` | `60` | Positive integer limit per IP |
+
+For interactive docs that send requests to your local server, set
+`PUBLIC_URL=http://localhost:3000` before starting it. Environment variables
+must be set in your shell or hosting dashboard; `.env` files are not loaded
+automatically.
+
 ## Endpoints
 
 | Method | Path | |
@@ -62,6 +97,10 @@ names the entry that failed.
 response from a `/v1` endpoint carries `X-Data-Version`, which changes whenever
 the data does.
 
+Oversized requests with a declared content length receive 413. On the Node
+server, oversized chunked uploads can close the connection before an error
+response is sent.
+
 ## The data
 
 `data/companies.json` is the dataset the API serves. It is loaded and validated
@@ -101,8 +140,8 @@ breaking requests.
 
 ### Editing it
 
-1. Edit `data/companies.json`. To add a year, add a line to each company. To
-   extend the data past 2024, also move `coverage.end`.
+1. Edit `data/companies.json`. Add yearly entries only where a published rate
+   or status is available. To extend the data past 2024, also move `coverage.end`.
 2. `pnpm data:format` validates the file and restores the canonical layout.
 3. `pnpm test`. If a change alters a number the website still computes
    differently, the parity test fails. That is intended; see below.
@@ -112,21 +151,10 @@ To resolve an `unresolved` ticker, move the correct candidate into `companies`
 
 ### Where it came from
 
-The file was generated from the website's `pure-percentages.json` by
-`pnpm data:import`. The command prints a report of its changes and any ticker
-still waiting for a decision. The website remains the data editing source for
-now; do not independently edit both copies. Run `pnpm data:import` after a site data change and review the diff.
-The importer accepts both the original mixed shapes and the site's schema v2
-(uniform `{ value, status }` cells). The API commits its own validated snapshot
-so it can deploy without the website checkout or a live network dependency.
-The website's repository is private, so `pnpm data:import` and
-`pnpm fixture:capture` can only be run by its maintainers.
-
-The site's September 2026 cleanup fixes the eight cells previously listed in
-`legacy-differences.json`; the refreshed parity fixture now requires zero
-rate or amount differences. The site's ticker review (its `docs/DATA.md`) then
-moved five rows the source had filed under another company's ticker, so no
-ticker is unresolved; each company is keyed by its current Tadawul symbol.
+The dataset originated from the purification data used by trynaqua.com.
+This repository includes a validated snapshot, so running the API and tests
+does not require the private website repository or a live network connection.
+Update `data/companies.json` using the editing steps above.
 
 ## Parity with the website
 
@@ -137,10 +165,10 @@ year by year, down to the last decimal. The only differences it allows are the
 data fixes pinned in `test/fixtures/legacy-differences.json`. An unexplained new
 difference fails the test, and so does a listed one that disappears.
 
-- Re-record the site's outputs (needs Bun and the site checked out alongside):
-  `TZ=Asia/Riyadh pnpm fixture:capture ../Purefi-Fresh`
-- After an intended change, regenerate the allowed differences and **review the
-  diff**: `UPDATE_DIFFERENCES=1 pnpm test`. Never do it just to turn a red test green.
+The website outputs are committed reference fixtures; tests do not need the
+website checkout. After an intended change, regenerate the allowed differences
+and **review the diff**: `UPDATE_DIFFERENCES=1 pnpm test`. Never do it just to
+turn a red test green.
 
 ## The HTTP contract
 
@@ -152,7 +180,7 @@ re-record it and review the diff: `UPDATE_CONTRACT=1 pnpm test`.
 ## Development
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev          # http://localhost:3000, restarts on change
 pnpm test         # node --test
 pnpm typecheck
@@ -167,19 +195,22 @@ rules (the compiler and linter enforce them):
 - Type-only imports use `import type`.
 - No enums, namespaces or constructor parameter properties.
 
-`docs/architecture.html` (open it in a browser) walks through how a request
-moves through the app.
+Contributions should include `pnpm check` passing. For a data correction,
+provide the source and review any changes to the parity fixtures. The
+`"private": true` field in `package.json` prevents accidental npm publishing;
+it does not control the GitHub repository's visibility or the code license.
 
 ## Deployment
 
 Render, from `render.yaml`: `pnpm install --prod`, then `node src/server.ts`. There
 is no build artifact, so what runs in production is exactly what the tests ran.
 
-- **First time:** Render → New → Blueprint → this repo. Then, in DNS, add
-  `CNAME api → naqwa-api.onrender.com`.
+- **First time:** Render → New → Blueprint → this repo. Use the service's
+  assigned `onrender.com` hostname as the DNS target for your custom domain.
+  Forks should change `domains` in `render.yaml` and set `PUBLIC_URL` to their
+  own API address.
 - **Free plan:** the service sleeps after ~15 idle minutes, and the next request
-  waits for a cold start. An uptime monitor on `/health` both alerts on outages
-  and keeps it awake.
+  waits for a cold start. Use `/health` for liveness monitoring.
 - **Rate limiting is in memory.** It is correct only while there is one
   instance, and it resets on every restart. It keys on the first
   `X-Forwarded-For` address when that is a real IP address, and tracks at most
@@ -203,6 +234,8 @@ cover the purification rates in `data/` and the test fixtures. They come from
 the Al-Maqased Center for Economic Consultations, which reserves all rights to
 its published lists, so ask the center before reusing them.
 
-To report a security problem, use **Report a vulnerability** on this
-repository’s Security tab. Keep reports private until the issue is fixed;
-please do not open a public issue for vulnerabilities.
+To report a security problem, use **Report a vulnerability** in the
+repository's Security tab when private reporting is enabled. Keep reports
+private until the issue is fixed; please do not open a public issue for
+vulnerabilities. Maintainers must enable private vulnerability reporting when
+making the repository public.

@@ -33,6 +33,15 @@ describe('dataset validation', () => {
     assert.equal(parse(minimal()).companies.length, 1);
   });
 
+  test('rejects impossible coverage dates at startup', () => {
+    for (const coverage of [
+      { start: '2015-02-30', end: '2024-12-31' },
+      { start: '2015-01-01', end: '2024-13-01' },
+    ]) {
+      assert.throws(() => parse(minimal({ coverage })), /real calendar date/);
+    }
+  });
+
   test('rejects a ticker listed twice', () => {
     const duplicate = minimal({ companies: [company({ ticker: 2330 }), company({ ticker: 2330 })] });
     assert.throws(() => parse(duplicate), /Ticker 2330 appears more than once/);
