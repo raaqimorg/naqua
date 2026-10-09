@@ -23,16 +23,18 @@ const clockFrom = (now: () => number): Clock.Clock => {
 export const makeTestApp = ({
   dataset,
   requestsPerMinute = 1_000_000,
+  isRender = false,
   now,
 }: {
   dataset: LoadedDataset;
   requestsPerMinute?: number;
+  isRender?: boolean;
   now?: () => number;
 }) => {
   const app = AppLayer.pipe(
     Layer.provide([
       Layer.succeed(Dataset, dataset),
-      ConfigProvider.layer(ConfigProvider.fromUnknown({ REQUESTS_PER_MINUTE: requestsPerMinute })),
+      ConfigProvider.layer(ConfigProvider.fromUnknown({ REQUESTS_PER_MINUTE: requestsPerMinute, RENDER: String(isRender) })),
       now ? Layer.succeed(Clock.Clock, clockFrom(now)) : Layer.empty,
       HttpServer.layerServices,
     ]),

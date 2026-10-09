@@ -214,14 +214,9 @@ Production runs on Render, from [`render.yaml`](render.yaml): `corepack pnpm ins
 
 - **First time:** Render → New → Blueprint → this repo. Use the service's assigned `onrender.com` hostname as the DNS target for your custom domain. A fork should change `domains` in `render.yaml`, and set `PUBLIC_URL` to its own API address.
 - **Free plan:** the service sleeps after about 15 idle minutes, and the next request waits for a cold start. Use `/health` for liveness monitoring.
-- **Rate limiting is in memory.** It is correct only while there is one instance, and it resets on every restart. It keys on the first `X-Forwarded-For` address when that is a real IP address, and it tracks at most 10,000 clients at a time, so made-up addresses cannot run it out of memory. Treat it as a courtesy limit, not as protection against abuse.
-- **After the first deploy,** check whether Render lets a client choose that address. If all 70 of these requests get a 200, it does, and the limiter should key on a header that the proxy sets instead:
-
-  ```bash
-  for i in $(seq 70); do
-    curl -s -o /dev/null -w '%{http_code}\n' -H "X-Forwarded-For: 198.51.100.$i" https://api.trynaqua.com/v1/meta
-  done | sort | uniq -c
-  ```
+- **Rate limiting is in memory.** Run one instance: counters reset on restart and track at most 10,000 clients. This limits request volume per IP; it does not replace DDoS protection.
+- **Client IPs:** when Render sets `RENDER=true`, the limiter uses `CF-Connecting-IP`, which [Render's public ingress overwrites](https://render.com/articles/host-pocketbase-on-render#making-pocketbase-see-the-real-client-ip). All requests must pass through that trusted ingress. Outside Render, or if the header is missing or invalid, it uses the socket address. It never trusts `X-Forwarded-For`. A missing trusted header behind a proxy can group multiple users into one quota. Revisit this trust configuration if you change hosting or allow private-network callers.
+- **After deploying,** verify on both the custom domain and the `onrender.com` hostname that changing `X-Forwarded-For` cannot restore access after a `429`. Use uncached POST requests within the same rate-limit window.
 
 - **Rollback:** Render → `naqua-api` → Events → an earlier deploy → Rollback.
 

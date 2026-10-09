@@ -9,7 +9,7 @@ import {
   HttpServerResponse,
 } from 'effect/http';
 import { HttpApiMiddleware } from 'effect/http-api';
-import { MAX_BODY_BYTES, REQUESTS_PER_MINUTE } from '../config.ts';
+import { IS_RENDER, MAX_BODY_BYTES, REQUESTS_PER_MINUTE } from '../config.ts';
 import { Dataset } from '../data/dataset.ts';
 import { issueList } from '../data/schema.ts';
 import { PayloadTooLarge, RateLimited, ValidationError, errorBody } from './errors.ts';
@@ -141,10 +141,11 @@ export class RateLimit extends HttpApiMiddleware.Service<RateLimit>()('naqua/Rat
       // Read while the layer is built, which is how a test's clock reaches it.
       const clock = yield* Clock.Clock;
       const hit = fixedWindow(yield* REQUESTS_PER_MINUTE, () => clock.currentTimeMillisUnsafe());
+      const isRender = yield* IS_RENDER;
 
       return RateLimit.of(
         Effect.fn(function* (handler) {
-          const { limit, remaining, secondsUntilReset, exceeded } = hit(clientKey(yield* HttpServerRequest.HttpServerRequest));
+          const { limit, remaining, secondsUntilReset, exceeded } = hit(clientKey(yield* HttpServerRequest.HttpServerRequest, isRender));
           yield* setResponseHeaders({
             'RateLimit-Limit': String(limit),
             'RateLimit-Remaining': String(remaining),
