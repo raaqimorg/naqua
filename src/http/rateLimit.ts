@@ -15,11 +15,10 @@ export interface Hit {
   exceeded: boolean;
 }
 
-// The first X-Forwarded-For address may be client-controlled (see README).
-// This is a courtesy limit; invalid addresses fall back to the socket address.
-export const clientKey = (request: HttpServerRequest.HttpServerRequest): string => {
-  const forwarded = request.headers['x-forwarded-for']?.split(',')[0]?.trim();
-  if (forwarded && forwarded.length <= MAX_IP_LENGTH && isIP(forwarded)) return forwarded;
+// Render's public ingress overwrites CF-Connecting-IP; other deployments trust only the socket.
+export const clientKey = (request: HttpServerRequest.HttpServerRequest, isRender: boolean): string => {
+  const forwarded = isRender ? request.headers['cf-connecting-ip']?.trim() : undefined;
+  if (forwarded && forwarded.length <= MAX_IP_LENGTH && !forwarded.includes('%') && isIP(forwarded)) return forwarded;
   return Option.getOrElse(request.remoteAddress, () => 'unknown');
 };
 

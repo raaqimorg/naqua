@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { Option } from 'effect';
+import { HttpServerRequest } from 'effect/http';
 import { describe, test } from 'node:test';
-import { fixedWindow } from '../src/http/rateLimit.ts';
+import { clientKey, fixedWindow } from '../src/http/rateLimit.ts';
 import { AMBIGUOUS_TICKER, app, calculate, dataset, disputedApp, get, json, makeTestApp } from './helpers.ts';
 
 describe('GET /v1/companies', () => {
@@ -299,8 +301,8 @@ describe('GET /v1/meta', () => {
 describe('rate limiting', () => {
   test('429s past the limit, per client, with Retry-After', async () => {
     let now = 0;
-    const limited = makeTestApp({ dataset, requestsPerMinute: 2, now: () => now });
-    const fromClient = (ip: string) => limited.request('/v1/meta', { headers: { 'X-Forwarded-For': `${ip}, 10.0.0.1` } });
+    const limited = makeTestApp({ dataset, requestsPerMinute: 2, isRender: true, now: () => now });
+    const fromClient = (ip: string) => limited.request('/v1/meta', { headers: { 'CF-Connecting-IP': ip } });
 
     assert.equal((await fromClient('1.1.1.1')).status, 200);
     assert.equal((await fromClient('1.1.1.1')).headers.get('RateLimit-Remaining'), '0');
@@ -311,19 +313,67 @@ describe('rate limiting', () => {
     assert.equal((await json(blocked)).error.code, 'RATE_LIMITED');
 
     assert.equal((await fromClient('2.2.2.2')).status, 200);
+    assert.equal((await fromClient('2001:db8::1')).status, 200);
 
     now = 60_000;
     assert.equal((await fromClient('1.1.1.1')).status, 200);
   });
 
-  test('keys only on a forwarded address that is a real IP', async () => {
-    const limited = makeTestApp({ dataset, requestsPerMinute: 1, now: () => 0 });
-    const claiming = (forwarded: string) => limited.request('/v1/meta', { headers: { 'X-Forwarded-For': forwarded } });
+  test('changing untrusted headers cannot refresh a Render client quota', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1, isRender: true, now: () => 0 });
+    const trusted = { 'CF-Connecting-IP': '198.51.100.1' };
+    assert.equal((await limited.request('/v1/meta', { headers: trusted })).status, 200);
 
-    assert.equal((await claiming('made-up')).status, 200);
-    // `isIP` accepts this, but no real address is 8 KB long. Both claims fall
-    // back to the socket address, so they share one window.
-    assert.equal((await claiming(`fe80::1%${'x'.repeat(8 * 1024)}`)).status, 429);
+    for (const headers of [
+      { 'X-Forwarded-For': '198.51.100.2' },
+      { 'X-Forwarded-For': '198.51.100.3, 10.0.0.1' },
+      { 'True-Client-IP': '198.51.100.4' },
+      { 'X-Real-IP': '198.51.100.5' },
+      { Forwarded: 'for=198.51.100.6' },
+    ]) {
+      const response = await limited.request('/v1/meta', { headers: { ...headers, ...trusted } });
+      assert.equal(response.status, 429);
+      assert.equal(response.headers.get('RateLimit-Remaining'), '0');
+    }
+  });
+
+  test('missing or invalid Render client IPs never fall back to X-Forwarded-For', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1, isRender: true, now: () => 0 });
+    assert.equal((await limited.request('/v1/meta')).status, 200);
+
+    const invalid = [undefined, '', 'made-up', '198.51.100.1, 198.51.100.2', '198.51.100.1:1234',
+      '[2001:db8::1]', 'fe80::1%eth0', `fe80::1%${'x'.repeat(8 * 1024)}`];
+    for (const [index, ip] of invalid.entries()) {
+      const headers: Record<string, string> = { 'X-Forwarded-For': `198.51.100.${index + 1}` };
+      if (ip !== undefined) headers['CF-Connecting-IP'] = ip;
+      assert.equal((await limited.request('/v1/meta', { headers })).status, 429);
+    }
+  });
+
+  test('forwarding headers are ignored outside Render', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1, now: () => 0 });
+    assert.equal((await limited.request('/v1/meta')).status, 200);
+
+    for (const ip of ['198.51.100.1', '198.51.100.2', '2001:db8::1']) {
+      const response = await limited.request('/v1/meta', {
+        headers: { 'X-Forwarded-For': ip, 'CF-Connecting-IP': ip, 'True-Client-IP': ip, 'X-Real-IP': ip },
+      });
+      assert.equal(response.status, 429);
+    }
+  });
+
+  test('socket fallback preserves distinct directly connected clients', () => {
+    const headers = { 'CF-Connecting-IP': '198.51.100.99', 'X-Forwarded-For': '198.51.100.98' };
+    for (const ip of ['192.0.2.1', '192.0.2.2', '2001:db8::1']) {
+      const request = HttpServerRequest.fromWeb(new Request('http://localhost/v1/meta', { headers }))
+        .modify({ remoteAddress: Option.some(ip) });
+      assert.equal(clientKey(request, false), ip);
+
+      const withoutTrustedHeader = HttpServerRequest.fromWeb(new Request('http://localhost/v1/meta', {
+        headers: { 'X-Forwarded-For': '198.51.100.98' },
+      })).modify({ remoteAddress: Option.some(ip) });
+      assert.equal(clientKey(withoutTrustedHeader, true), ip);
+    }
   });
 
   test('tracks a bounded number of clients, dropping the oldest', () => {
