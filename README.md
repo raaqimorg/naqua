@@ -20,7 +20,9 @@
   <a href="#license"><img alt="Rates: © Al-Maqased Center" src="https://img.shields.io/badge/rates-%C2%A9%20Al--Maqased-blue.svg"></a>
 </p>
 
-Naqua is a public API for purifying Saudi (Tadawul) stocks. It serves the purification rate published for each company and year, and it calculates how much to purify for a set of holdings. It runs the same calculation as the calculator on [trynaqua.com](https://trynaqua.com), and a test sweep holds the two to the same numbers.
+# naqua-api
+
+`naqua-api` is a public API for Saudi (Tadawul) stock purification and one of the products of [Naqua (نقوة)](https://trynaqua.com), a startup. It serves the purification rate published for each company and year, and it calculates how much to purify for a set of holdings. It runs the same calculation as the calculator on [trynaqua.com](https://trynaqua.com), and a test sweep holds the two to the same numbers.
 
 | Companies | Years | Company-years | With a rate | Pure | Mixed | Non-pure | Public sector |
 | --------: | ----: | ------------: | ----------: | ---: | ----: | -------: | ------------: |
@@ -51,8 +53,8 @@ curl https://api.trynaqua.com/v1/companies/2330/rates/2023
 **Run it locally.** You need Node 24 and pnpm 12.4.2, which `package.json` pins and Corepack provides. Then run:
 
 ```bash
-git clone https://github.com/raaqimorg/naqua.git
-cd naqua
+git clone https://github.com/raaqimorg/naqua-api.git
+cd naqua-api
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -232,7 +234,7 @@ After an intended change, regenerate the allowed differences with `UPDATE_DIFFER
 
 ## Contributing
 
-Report bugs and ideas in [GitHub issues](https://github.com/raaqimorg/naqua/issues). To change code, do these steps:
+Report bugs and ideas in [GitHub issues](https://github.com/raaqimorg/naqua-api/issues). To change code, do these steps:
 
 1. Open an issue.
 2. Fork the repo, and branch off `main`.
@@ -270,7 +272,7 @@ The `"private": true` field in `package.json` prevents accidental publishing to 
 
 ## Contact
 
-Naqua is part of [Raaqim](https://raaqim.org), an open-source organization behind several Arabic-language projects.
+`naqua-api` is a product of Naqua (نقوة), a startup that is part of [Raaqim](https://raaqim.org), an open-source organization behind several Arabic-language projects.
 
 To report a security problem, use **Report a vulnerability** in the repository's Security tab, and keep the report private until the issue is fixed. Please do not open a public issue for a vulnerability. [`SECURITY.md`](.github/SECURITY.md) has the policy and its scope, and the [code of conduct](.github/CODE_OF_CONDUCT.md) covers how we treat each other here.
 
