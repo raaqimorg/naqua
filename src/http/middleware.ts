@@ -1,4 +1,4 @@
-import { ByteSize, Clock, Effect, Layer } from 'effect';
+import { ByteSize, Clock, Config, Effect, Layer, Option } from 'effect';
 import {
   HttpEffect,
   HttpIncomingMessage,
@@ -111,6 +111,13 @@ export class JsonBody extends HttpApiMiddleware.Service<JsonBody>()('naqua/JsonB
   );
 }
 
+// TEMPORARY: shows which client-IP headers the proxies set and which a client
+// can. Logs only those headers, only for a request whose X-IP-Diagnostics
+// header matches IP_DIAGNOSTICS_TOKEN. Remove once the limiter trusts the
+// right header.
+const IP_HEADERS = ['x-forwarded-for', 'cf-connecting-ip', 'true-client-ip', 'x-real-ip', 'forwarded'];
+const IP_DIAGNOSTICS_TOKEN = Config.String('IP_DIAGNOSTICS_TOKEN').pipe(Config.withDefault(''));
+
 export class RateLimit extends HttpApiMiddleware.Service<RateLimit>()('naqua/RateLimit', { error: RateLimited }) {
   static readonly layer = Layer.effect(
     RateLimit,
@@ -118,10 +125,18 @@ export class RateLimit extends HttpApiMiddleware.Service<RateLimit>()('naqua/Rat
       // Read while the layer is built, which is how a test's clock reaches it.
       const clock = yield* Clock.Clock;
       const hit = fixedWindow(yield* REQUESTS_PER_MINUTE, () => clock.currentTimeMillisUnsafe());
+      const diagnosticsToken = yield* IP_DIAGNOSTICS_TOKEN;
 
       return RateLimit.of(
         Effect.fn(function* (handler) {
-          const { limit, remaining, secondsUntilReset, exceeded } = hit(clientKey(yield* HttpServerRequest.HttpServerRequest));
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const key = clientKey(request);
+          if (diagnosticsToken !== '' && request.headers['x-ip-diagnostics'] === diagnosticsToken) {
+            const headers = Object.fromEntries(IP_HEADERS.map((name) => [name, request.headers[name] ?? null]));
+            const remoteAddress = Option.getOrNull(request.remoteAddress);
+            yield* Effect.logInfo(`ip-diagnostics ${JSON.stringify({ host: request.headers['host'], remoteAddress, key, ...headers })}`);
+          }
+          const { limit, remaining, secondsUntilReset, exceeded } = hit(key);
           yield* setResponseHeaders({
             'RateLimit-Limit': String(limit),
             'RateLimit-Remaining': String(remaining),
