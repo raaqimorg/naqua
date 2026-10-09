@@ -1,0 +1,22 @@
+{
+  // Node runs the .ts sources directly (type stripping), so tsc only checks.
+  // `erasableSyntaxOnly` keeps out the TypeScript features Node cannot strip:
+  // enums, namespaces and constructor parameter properties.
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "scripts", "test"]
+}

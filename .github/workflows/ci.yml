@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # `pnpm check` calls `pnpm run` for each step, so pnpm has to be on the
+      # PATH; `corepack pnpm` alone is not enough.
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check

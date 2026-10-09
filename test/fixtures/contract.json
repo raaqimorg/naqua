@@ -1,0 +1,1265 @@
+{
+  "index": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "name": "Naqwa Purification API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "openapi": "/openapi.json"
+      }
+    }
+  ],
+  "health": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "status": "ok"
+      }
+    }
+  ],
+  "meta": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "apiVersion": "1.0.0",
+        "dataVersion": "7f6530f2a2fa",
+        "coverage": {
+          "start": "2015-01-01",
+          "end": "2024-12-31",
+          "years": [
+            2015,
+            2016,
+            2017,
+            2018,
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ]
+        },
+        "unit": "SAR to purify per share held for a full year",
+        "formula": "purificationAmount = shares × ratePerShare × daysOwned / 365, for each calendar year held",
+        "companyCount": 2,
+        "unresolvedTickers": [
+          9998
+        ],
+        "rateLimit": {
+          "requestsPerMinute": 60
+        },
+        "maxEntriesPerRequest": 100
+      }
+    }
+  ],
+  "company list": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "count": 2,
+        "companies": [
+          {
+            "ticker": 2222,
+            "name": "أرامكو السعودية",
+            "aliases": [],
+            "overallStatus": "public-sector",
+            "availableYears": [
+              2023,
+              2024
+            ]
+          },
+          {
+            "ticker": 2330,
+            "name": "المتقدمة",
+            "aliases": [
+              "المتقدمة للبتروكيماويات"
+            ],
+            "overallStatus": "varies",
+            "availableYears": [
+              2021,
+              2022,
+              2023
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "company": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "ticker": 2330,
+        "name": "المتقدمة",
+        "aliases": [
+          "المتقدمة للبتروكيماويات"
+        ],
+        "overallStatus": "varies",
+        "years": [
+          {
+            "year": 2015,
+            "ratePerShare": null,
+            "status": "non-pure"
+          },
+          {
+            "year": 2021,
+            "ratePerShare": 0.026,
+            "status": "pure"
+          },
+          {
+            "year": 2022,
+            "ratePerShare": 0.018,
+            "status": "mixed"
+          },
+          {
+            "year": 2023,
+            "ratePerShare": 0.0203,
+            "status": "pure"
+          }
+        ]
+      }
+    }
+  ],
+  "company: unknown ticker": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "UNKNOWN_TICKER",
+          "message": {
+            "ar": "لا توجد شركة برمز 9999 في قاعدة البيانات.",
+            "en": "No company with ticker 9999 is in the database."
+          },
+          "details": {
+            "ticker": 9999
+          }
+        }
+      }
+    }
+  ],
+  "company: ambiguous ticker": [
+    {
+      "status": 409,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "AMBIGUOUS_TICKER",
+          "message": {
+            "ar": "الرمز 9998 مرتبط بأكثر من شركة في البيانات، لذا لا يمكن تحديد الشركة المقصودة.",
+            "en": "Ticker 9998 maps to more than one company in the data, so it cannot be resolved."
+          },
+          "details": {
+            "ticker": 9998,
+            "candidates": [
+              "أ",
+              "ب"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "company: ticker that is not a number": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.",
+            "en": "The request is invalid. See `details` for the offending fields."
+          },
+          "details": [
+            {
+              "path": "ticker"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "company: trailing slash": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "count": 2,
+        "companies": [
+          {
+            "ticker": 2222,
+            "name": "أرامكو السعودية",
+            "aliases": [],
+            "overallStatus": "public-sector",
+            "availableYears": [
+              2023,
+              2024
+            ]
+          },
+          {
+            "ticker": 2330,
+            "name": "المتقدمة",
+            "aliases": [
+              "المتقدمة للبتروكيماويات"
+            ],
+            "overallStatus": "varies",
+            "availableYears": [
+              2021,
+              2022,
+              2023
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "rate": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "ticker": 2330,
+        "name": "المتقدمة",
+        "year": 2023,
+        "ratePerShare": 0.0203,
+        "status": "pure"
+      }
+    }
+  ],
+  "rate: year with a status but no rate": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "RATE_NOT_AVAILABLE",
+          "message": {
+            "ar": "نسبة التطهير لشركة المتقدمة في السنة 2015 غير متوفرة.",
+            "en": "No purification rate is published for المتقدمة in 2015."
+          },
+          "details": {
+            "ticker": 2330,
+            "year": 2015
+          }
+        }
+      }
+    }
+  ],
+  "rate: year outside the data": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "RATE_NOT_AVAILABLE",
+          "message": {
+            "ar": "نسبة التطهير لشركة المتقدمة في السنة 2031 غير متوفرة.",
+            "en": "No purification rate is published for المتقدمة in 2031."
+          },
+          "details": {
+            "ticker": 2330,
+            "year": 2031
+          }
+        }
+      }
+    }
+  ],
+  "rate: ambiguous ticker": [
+    {
+      "status": 409,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "AMBIGUOUS_TICKER",
+          "message": {
+            "ar": "الرمز 9998 مرتبط بأكثر من شركة في البيانات، لذا لا يمكن تحديد الشركة المقصودة.",
+            "en": "Ticker 9998 maps to more than one company in the data, so it cannot be resolved."
+          },
+          "details": {
+            "ticker": 9998,
+            "candidates": [
+              "أ",
+              "ب"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "rate: year that is not a number": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.",
+            "en": "The request is invalid. See `details` for the offending fields."
+          },
+          "details": [
+            {
+              "path": "year"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "calculate": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "currency": "SAR",
+        "totalPurificationAmount": 5.5019726027,
+        "entries": [
+          {
+            "index": 0,
+            "ticker": 2330,
+            "companyName": "المتقدمة",
+            "shares": 100,
+            "purificationAmount": 4.9808219178,
+            "years": [
+              {
+                "year": 2021,
+                "daysOwned": 306,
+                "ratePerShare": 0.026,
+                "status": "pure",
+                "purificationAmount": 2.1797260274
+              },
+              {
+                "year": 2022,
+                "daysOwned": 365,
+                "ratePerShare": 0.018,
+                "status": "mixed",
+                "purificationAmount": 1.8
+              },
+              {
+                "year": 2023,
+                "daysOwned": 180,
+                "ratePerShare": 0.0203,
+                "status": "pure",
+                "purificationAmount": 1.0010958904
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "ticker": 2222,
+            "companyName": "أرامكو السعودية",
+            "shares": 10,
+            "purificationAmount": 0.028,
+            "years": [
+              {
+                "year": 2023,
+                "daysOwned": 365,
+                "ratePerShare": 0.0016,
+                "status": "public-sector",
+                "purificationAmount": 0.016
+              },
+              {
+                "year": 2024,
+                "daysOwned": 365,
+                "ratePerShare": 0.0012,
+                "status": "public-sector",
+                "purificationAmount": 0.012
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "ticker": 2330,
+            "companyName": "المتقدمة",
+            "shares": 50,
+            "purificationAmount": 0.4931506849,
+            "years": [
+              {
+                "year": 2022,
+                "daysOwned": 200,
+                "ratePerShare": 0.018,
+                "status": "mixed",
+                "purificationAmount": 0.4931506849
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "calculate: unknown ticker": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "UNKNOWN_TICKER",
+          "message": {
+            "ar": "لا توجد شركة برمز 9999 في قاعدة البيانات.",
+            "en": "No company with ticker 9999 is in the database."
+          },
+          "details": {
+            "ticker": 9999,
+            "entryIndex": 1
+          }
+        }
+      }
+    }
+  ],
+  "calculate: ambiguous ticker": [
+    {
+      "status": 409,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "AMBIGUOUS_TICKER",
+          "message": {
+            "ar": "الرمز 9998 مرتبط بأكثر من شركة في البيانات، لذا لا يمكن تحديد الشركة المقصودة.",
+            "en": "Ticker 9998 maps to more than one company in the data, so it cannot be resolved."
+          },
+          "details": {
+            "ticker": 9998,
+            "candidates": [
+              "أ",
+              "ب"
+            ],
+            "entryIndex": 0
+          }
+        }
+      }
+    }
+  ],
+  "calculate: a year without a rate": [
+    {
+      "status": 422,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "RATE_NOT_AVAILABLE",
+          "message": {
+            "ar": "نسبة التطهير لشركة المتقدمة في السنة 2015 غير متوفرة.",
+            "en": "No purification rate is published for المتقدمة in 2015."
+          },
+          "details": {
+            "ticker": 2330,
+            "year": 2015,
+            "entryIndex": 1
+          }
+        }
+      }
+    }
+  ],
+  "calculate: a rule across fields": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.",
+            "en": "The request is invalid. See `details` for the offending fields."
+          },
+          "details": [
+            {
+              "path": "entries.0.saleDate"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "calculate: a field of the wrong type": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.",
+            "en": "The request is invalid. See `details` for the offending fields."
+          },
+          "details": [
+            {
+              "path": "entries.0.ticker"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "calculate: no entries": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.",
+            "en": "The request is invalid. See `details` for the offending fields."
+          },
+          "details": [
+            {
+              "path": "entries"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "calculate: malformed JSON": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "تعذّر قراءة جسم الطلب. أرسل JSON صالحًا مع الترويسة Content-Type: application/json.",
+            "en": "The request body could not be parsed. Send valid JSON with Content-Type: application/json."
+          }
+        }
+      }
+    }
+  ],
+  "calculate: text/plain body": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "تعذّر قراءة جسم الطلب. أرسل JSON صالحًا مع الترويسة Content-Type: application/json.",
+            "en": "The request body could not be parsed. Send valid JSON with Content-Type: application/json."
+          }
+        }
+      }
+    }
+  ],
+  "calculate: no Content-Type": [
+    {
+      "status": 400,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": {
+            "ar": "تعذّر قراءة جسم الطلب. أرسل JSON صالحًا مع الترويسة Content-Type: application/json.",
+            "en": "The request body could not be parsed. Send valid JSON with Content-Type: application/json."
+          }
+        }
+      }
+    }
+  ],
+  "calculate: body over 100 KB": [
+    {
+      "status": 413,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "PAYLOAD_TOO_LARGE",
+          "message": {
+            "ar": "حجم الطلب أكبر من المسموح (100 كيلوبايت).",
+            "en": "Request body exceeds 100 KB."
+          }
+        }
+      }
+    }
+  ],
+  "rate limit: the third request in a minute": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "2",
+        "ratelimit-remaining": "1",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "apiVersion": "1.0.0",
+        "dataVersion": "7f6530f2a2fa",
+        "coverage": {
+          "start": "2015-01-01",
+          "end": "2024-12-31",
+          "years": [
+            2015,
+            2016,
+            2017,
+            2018,
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ]
+        },
+        "unit": "SAR to purify per share held for a full year",
+        "formula": "purificationAmount = shares × ratePerShare × daysOwned / 365, for each calendar year held",
+        "companyCount": 2,
+        "unresolvedTickers": [
+          9998
+        ],
+        "rateLimit": {
+          "requestsPerMinute": 2
+        },
+        "maxEntriesPerRequest": 100
+      }
+    },
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "2",
+        "ratelimit-remaining": "0",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "apiVersion": "1.0.0",
+        "dataVersion": "7f6530f2a2fa",
+        "coverage": {
+          "start": "2015-01-01",
+          "end": "2024-12-31",
+          "years": [
+            2015,
+            2016,
+            2017,
+            2018,
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ]
+        },
+        "unit": "SAR to purify per share held for a full year",
+        "formula": "purificationAmount = shares × ratePerShare × daysOwned / 365, for each calendar year held",
+        "companyCount": 2,
+        "unresolvedTickers": [
+          9998
+        ],
+        "rateLimit": {
+          "requestsPerMinute": 2
+        },
+        "maxEntriesPerRequest": 100
+      }
+    },
+    {
+      "status": 429,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "2",
+        "ratelimit-remaining": "0",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "retry-after": "60",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "RATE_LIMITED",
+          "message": {
+            "ar": "تجاوزت الحد المسموح (2 طلبًا في الدقيقة). حاول مجددًا بعد 60 ثانية.",
+            "en": "Rate limit of 2 requests per minute exceeded. Retry in 60s."
+          }
+        }
+      }
+    }
+  ],
+  "CORS preflight": [
+    {
+      "status": 204,
+      "headers": {
+        "access-control-allow-headers": "Content-Type",
+        "access-control-allow-methods": "GET, POST",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "access-control-max-age": "86400"
+      },
+      "body": ""
+    }
+  ],
+  "cross-origin GET": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "apiVersion": "1.0.0",
+        "dataVersion": "7f6530f2a2fa",
+        "coverage": {
+          "start": "2015-01-01",
+          "end": "2024-12-31",
+          "years": [
+            2015,
+            2016,
+            2017,
+            2018,
+            2019,
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ]
+        },
+        "unit": "SAR to purify per share held for a full year",
+        "formula": "purificationAmount = shares × ratePerShare × daysOwned / 365, for each calendar year held",
+        "companyCount": 2,
+        "unresolvedTickers": [
+          9998
+        ],
+        "rateLimit": {
+          "requestsPerMinute": 60
+        },
+        "maxEntriesPerRequest": 100
+      }
+    }
+  ],
+  "HEAD": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "cache-control": "public, max-age=3600",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": ""
+    }
+  ],
+  "docs": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "text/html",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": "(the docs page)"
+    }
+  ],
+  "OpenAPI document": [
+    {
+      "status": 200,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "openapi": "3.1.0",
+        "info": {
+          "title": "Naqwa Purification API",
+          "version": "1.0.0",
+          "description": "Stock purification rates for Saudi (Tadawul) companies, and a calculator for the amount to purify. Every error carries a stable `code` and a message in Arabic and English. Requests under /v1 are limited to 60 per minute per IP."
+        },
+        "servers": [
+          {
+            "url": "https://api.trynaqua.com"
+          }
+        ],
+        "paths": {
+          "/v1/companies": [
+            "get"
+          ],
+          "/v1/companies/{ticker}": [
+            "get"
+          ],
+          "/v1/companies/{ticker}/rates/{year}": [
+            "get"
+          ],
+          "/v1/purification/calculate": [
+            "post"
+          ],
+          "/v1/meta": [
+            "get"
+          ],
+          "/health": [
+            "get"
+          ]
+        }
+      }
+    }
+  ],
+  "unknown route": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": {
+            "ar": "المسار غير موجود.",
+            "en": "No route for GET /v2/nothing."
+          }
+        }
+      }
+    }
+  ],
+  "unknown route under /v1": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": {
+            "ar": "المسار غير موجود.",
+            "en": "No route for GET /v1/nothing."
+          }
+        }
+      }
+    }
+  ],
+  "wrong method": [
+    {
+      "status": 404,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": {
+            "ar": "المسار غير موجود.",
+            "en": "No route for POST /v1/meta."
+          }
+        }
+      }
+    }
+  ],
+  "unexpected failure": [
+    {
+      "status": 500,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "INTERNAL_ERROR",
+          "message": {
+            "ar": "حدث خطأ غير متوقع.",
+            "en": "An unexpected error occurred."
+          }
+        }
+      }
+    }
+  ],
+  "unexpected failure: a response that breaks its schema": [
+    {
+      "status": 500,
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "RateLimit-Limit,RateLimit-Remaining,RateLimit-Reset,Retry-After,X-Data-Version",
+        "content-type": "application/json",
+        "ratelimit-limit": "60",
+        "ratelimit-remaining": "59",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-data-version": "7f6530f2a2fa",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "body": {
+        "error": {
+          "code": "INTERNAL_ERROR",
+          "message": {
+            "ar": "حدث خطأ غير متوقع.",
+            "en": "An unexpected error occurred."
+          }
+        }
+      }
+    }
+  ]
+}

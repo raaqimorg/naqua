@@ -1,0 +1,350 @@
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+import { fixedWindow } from '../src/http/rateLimit.ts';
+import { AMBIGUOUS_TICKER, app, calculate, dataset, disputedApp, get, json, makeTestApp } from './helpers.ts';
+
+describe('GET /v1/companies', () => {
+  test('lists every resolved company once, sorted by ticker', async () => {
+    const response = await get('/v1/companies');
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('Cache-Control'), 'public, max-age=3600');
+    assert.equal(response.headers.get('X-Data-Version'), dataset.version);
+
+    const body = await json(response);
+    assert.equal(body.count, dataset.companies.length);
+    const tickers = body.companies.map((company: { ticker: number }) => company.ticker);
+    assert.deepEqual(tickers, [...tickers].sort((a, b) => a - b));
+    assert.equal(new Set(tickers).size, tickers.length);
+    for (const unresolved of dataset.unresolved) assert.ok(!tickers.includes(unresolved.ticker));
+  });
+
+  test('summarises each company', async () => {
+    const body = await json(await get('/v1/companies'));
+    const advanced = body.companies.find((company: { ticker: number }) => company.ticker === 2330);
+    assert.deepEqual(advanced, {
+      ticker: 2330,
+      name: 'المتقدمة',
+      aliases: [],
+      overallStatus: 'varies',
+      availableYears: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    });
+  });
+});
+
+describe('GET /v1/companies/:ticker', () => {
+  test('returns every known year', async () => {
+    const response = await get('/v1/companies/2330');
+    assert.equal(response.status, 200);
+    const body = await json(response);
+    assert.equal(body.name, 'المتقدمة');
+    assert.deepEqual(body.years[0], { year: 2015, ratePerShare: 0.0199, status: 'mixed' });
+  });
+
+  test('includes a year that has a status but no rate', async () => {
+    const body = await json(await get('/v1/companies/4011'));
+    assert.deepEqual(body.years.find((year: { year: number }) => year.year === 2015), {
+      year: 2015,
+      ratePerShare: null,
+      status: 'non-pure',
+    });
+  });
+
+  test('carries former names as aliases', async () => {
+    const body = await json(await get('/v1/companies/4240'));
+    assert.equal(body.name, 'سينومي ريتيل');
+    assert.deepEqual(body.aliases, ['فواز الحكير']);
+  });
+
+  test('calls Aramco public-sector', async () => {
+    const body = await json(await get('/v1/companies/2222'));
+    assert.equal(body.overallStatus, 'public-sector');
+  });
+
+  test('404s an unknown ticker with a bilingual message', async () => {
+    const response = await get('/v1/companies/9999');
+    assert.equal(response.status, 404);
+    const { error } = await json(response);
+    assert.equal(error.code, 'UNKNOWN_TICKER');
+    assert.match(error.message.ar, /9999/);
+    assert.match(error.message.en, /9999/);
+  });
+
+  test('409s a ticker the data assigns to two different companies', async () => {
+    for (const path of [`/v1/companies/${AMBIGUOUS_TICKER}`, `/v1/companies/${AMBIGUOUS_TICKER}/rates/2024`]) {
+      const response = await disputedApp.request(path);
+      assert.equal(response.status, 409, path);
+      const { error } = await json(response);
+      assert.equal(error.code, 'AMBIGUOUS_TICKER');
+      assert.deepEqual(error.details.candidates, ['أ', 'ب']);
+    }
+  });
+
+  test('400s a non-numeric ticker', async () => {
+    const response = await get('/v1/companies/abc');
+    assert.equal(response.status, 400);
+    assert.equal((await json(response)).error.code, 'VALIDATION_ERROR');
+  });
+});
+
+describe('GET /v1/companies/:ticker/rates/:year', () => {
+  test('returns one year', async () => {
+    const response = await get('/v1/companies/2330/rates/2023');
+    assert.equal(response.status, 200);
+    assert.deepEqual(await json(response), {
+      ticker: 2330,
+      name: 'المتقدمة',
+      year: 2023,
+      ratePerShare: 0.0203,
+      status: 'pure',
+    });
+  });
+
+  test('404s a year outside the data', async () => {
+    const response = await get('/v1/companies/2330/rates/2031');
+    assert.equal(response.status, 404);
+    assert.equal((await json(response)).error.code, 'RATE_NOT_AVAILABLE');
+  });
+
+  test('404s a year with a status but no rate', async () => {
+    const response = await get('/v1/companies/4011/rates/2015');
+    assert.equal(response.status, 404);
+    assert.equal((await json(response)).error.code, 'RATE_NOT_AVAILABLE');
+  });
+});
+
+describe('POST /v1/purification/calculate', () => {
+  test('prorates a date range across calendar years', async () => {
+    const response = await calculate({
+      entries: [{ ticker: 2330, shares: 100, purchaseDate: '2021-03-01', saleDate: '2023-06-30' }],
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await json(response), {
+      currency: 'SAR',
+      totalPurificationAmount: 4.9808219178,
+      entries: [
+        {
+          index: 0,
+          ticker: 2330,
+          companyName: 'المتقدمة',
+          shares: 100,
+          purificationAmount: 4.9808219178,
+          years: [
+            { year: 2021, daysOwned: 306, ratePerShare: 0.026, status: 'pure', purificationAmount: 2.1797260274 },
+            { year: 2022, daysOwned: 365, ratePerShare: 0.018, status: 'pure', purificationAmount: 1.8 },
+            { year: 2023, daysOwned: 180, ratePerShare: 0.0203, status: 'pure', purificationAmount: 1.0010958904 },
+          ],
+        },
+      ],
+    });
+  });
+
+  test('accepts days mode and still-owned holdings in one request', async () => {
+    const response = await calculate({
+      entries: [
+        { ticker: 2001, shares: 50, year: 2022, daysOwned: 200 },
+        { ticker: 2222, shares: 10, purchaseDate: '2023-01-01', stillOwned: true },
+      ],
+    });
+    assert.equal(response.status, 200);
+    const body = await json(response);
+    assert.deepEqual(body.entries.map((entry: { index: number }) => entry.index), [0, 1]);
+    const aramcoYears = body.entries[1].years.map((year: { year: number; daysOwned: number }) => [year.year, year.daysOwned]);
+    assert.deepEqual(aramcoYears, [
+      [2023, 365],
+      [2024, 365],
+    ]);
+    const entryTotal = body.entries.reduce((sum: number, entry: { purificationAmount: number }) => sum + entry.purificationAmount, 0);
+    assert.equal(body.totalPurificationAmount, Number(entryTotal.toFixed(10)));
+  });
+
+  const invalid: [string, Record<string, unknown>, string][] = [
+    ['both modes', { ticker: 2330, shares: 1, purchaseDate: '2020-01-01', saleDate: '2021-01-01', year: 2020, daysOwned: 5 }, 'year'],
+    ['neither mode', { ticker: 2330, shares: 1 }, 'purchaseDate'],
+    ['a sale date without a purchase date', { ticker: 2330, shares: 1, saleDate: '2021-03-01' }, 'purchaseDate'],
+    ['an impossible date', { ticker: 2330, shares: 1, purchaseDate: '2021-02-30', saleDate: '2021-03-01' }, 'purchaseDate'],
+    ['a date before the data', { ticker: 2330, shares: 1, purchaseDate: '2014-12-31', saleDate: '2015-03-01' }, 'purchaseDate'],
+    ['a sale after the data', { ticker: 2330, shares: 1, purchaseDate: '2024-01-01', saleDate: '2025-01-01' }, 'saleDate'],
+    ['a sale on the purchase day', { ticker: 2330, shares: 1, purchaseDate: '2021-05-01', saleDate: '2021-05-01' }, 'saleDate'],
+    ['a missing sale date', { ticker: 2330, shares: 1, purchaseDate: '2021-05-01' }, 'saleDate'],
+    ['a sale date on a still-owned holding', { ticker: 2330, shares: 1, purchaseDate: '2021-05-01', saleDate: '2022-01-01', stillOwned: true }, 'saleDate'],
+    ['still owned from the last day of the data', { ticker: 2330, shares: 1, purchaseDate: '2024-12-31', stillOwned: true }, 'purchaseDate'],
+    ['a year outside the data', { ticker: 2330, shares: 1, year: 2014, daysOwned: 10 }, 'year'],
+    ['days past the data', { ticker: 2330, shares: 1, year: 2024, daysOwned: 366 }, 'daysOwned'],
+    ['days without a year', { ticker: 2330, shares: 1, daysOwned: 10 }, 'year'],
+    ['fractional days', { ticker: 2330, shares: 1, year: 2024, daysOwned: 1.5 }, 'daysOwned'],
+    ['zero shares', { ticker: 2330, shares: 0, year: 2024, daysOwned: 10 }, 'shares'],
+    ['a ticker as a string', { ticker: '2330', shares: 1, year: 2024, daysOwned: 10 }, 'ticker'],
+  ];
+  for (const [label, entry, field] of invalid) {
+    test(`rejects ${label}`, async () => {
+      const response = await calculate({ entries: [entry] });
+      assert.equal(response.status, 400);
+      const { error } = await json(response);
+      assert.equal(error.code, 'VALIDATION_ERROR');
+      assert.ok(
+        error.details.some((issue: { path: string }) => issue.path === `entries.0.${field}`),
+        `expected an issue on entries.0.${field}, got ${JSON.stringify(error.details)}`,
+      );
+    });
+  }
+
+  test('explains its own rules in its own words', async () => {
+    const issue = async (entry: Record<string, unknown>) => (await json(await calculate({ entries: [entry] }))).error.details[0];
+    assert.deepEqual(await issue({ ticker: 2330, shares: 1, year: 2024, daysOwned: 366 }), {
+      path: 'entries.0.daysOwned',
+      message: 'Starting in 2024, `daysOwned` cannot exceed 365 (data ends in 2024).',
+    });
+    assert.deepEqual(await issue({ ticker: 2330, shares: 1, purchaseDate: '2021-05-01', saleDate: '2021-05-01' }), {
+      path: 'entries.0.saleDate',
+      message: 'The sale date must be after the purchase date.',
+    });
+  });
+
+  test('rejects an empty or oversized batch', async () => {
+    assert.equal((await calculate({ entries: [] })).status, 400);
+    const tooMany = Array.from({ length: 101 }, () => ({ ticker: 2330, shares: 1, year: 2024, daysOwned: 1 }));
+    assert.equal((await calculate({ entries: tooMany })).status, 400);
+  });
+
+  test('400s a body that is not JSON', async () => {
+    const response = await calculate('not json');
+    assert.equal(response.status, 400);
+    assert.equal((await json(response)).error.code, 'VALIDATION_ERROR');
+  });
+
+  test('413s a body over 100 KB', async () => {
+    const response = await calculate({ entries: [], padding: 'x'.repeat(101 * 1024) });
+    assert.equal(response.status, 413);
+    assert.equal((await json(response)).error.code, 'PAYLOAD_TOO_LARGE');
+  });
+
+  test('names the failing entry when a year has no rate', async () => {
+    const response = await calculate({
+      entries: [
+        { ticker: 2330, shares: 1, year: 2024, daysOwned: 10 },
+        { ticker: 2222, shares: 1, year: 2015, daysOwned: 10 },
+      ],
+    });
+    assert.equal(response.status, 422);
+    const { error } = await json(response);
+    assert.equal(error.code, 'RATE_NOT_AVAILABLE');
+    assert.deepEqual(error.details, { ticker: 2222, year: 2015, entryIndex: 1 });
+  });
+
+  test('404s an unknown ticker and names the entry', async () => {
+    const response = await calculate({ entries: [{ ticker: 9999, shares: 1, year: 2024, daysOwned: 10 }] });
+    assert.equal(response.status, 404);
+    assert.deepEqual((await json(response)).error.details, { ticker: 9999, entryIndex: 0 });
+  });
+
+  test('refuses an ambiguous ticker instead of guessing', async () => {
+    const response = await disputedApp.request('/v1/purification/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: [{ ticker: AMBIGUOUS_TICKER, shares: 1, year: 2024, daysOwned: 10 }] }),
+    });
+    assert.equal(response.status, 409);
+    const { error } = await json(response);
+    assert.equal(error.code, 'AMBIGUOUS_TICKER');
+    assert.equal(error.details.entryIndex, 0);
+  });
+});
+
+describe('GET /v1/meta', () => {
+  test('describes the data', async () => {
+    const body = await json(await get('/v1/meta'));
+    assert.equal(body.dataVersion, dataset.version);
+    assert.deepEqual(body.coverage, {
+      start: '2015-01-01',
+      end: '2024-12-31',
+      years: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    });
+    assert.equal(body.companyCount, dataset.companies.length);
+    assert.deepEqual(body.unresolvedTickers, []);
+    assert.deepEqual((await json(await disputedApp.request('/v1/meta'))).unresolvedTickers, [AMBIGUOUS_TICKER]);
+    assert.equal(body.rateLimit.requestsPerMinute, 1_000_000);
+  });
+});
+
+describe('rate limiting', () => {
+  test('429s past the limit, per client, with Retry-After', async () => {
+    let now = 0;
+    const limited = makeTestApp({ dataset, requestsPerMinute: 2, now: () => now });
+    const fromClient = (ip: string) => limited.request('/v1/meta', { headers: { 'X-Forwarded-For': `${ip}, 10.0.0.1` } });
+
+    assert.equal((await fromClient('1.1.1.1')).status, 200);
+    assert.equal((await fromClient('1.1.1.1')).headers.get('RateLimit-Remaining'), '0');
+
+    const blocked = await fromClient('1.1.1.1');
+    assert.equal(blocked.status, 429);
+    assert.equal(blocked.headers.get('Retry-After'), '60');
+    assert.equal((await json(blocked)).error.code, 'RATE_LIMITED');
+
+    assert.equal((await fromClient('2.2.2.2')).status, 200);
+
+    now = 60_000;
+    assert.equal((await fromClient('1.1.1.1')).status, 200);
+  });
+
+  test('keys only on a forwarded address that is a real IP', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1, now: () => 0 });
+    const claiming = (forwarded: string) => limited.request('/v1/meta', { headers: { 'X-Forwarded-For': forwarded } });
+
+    assert.equal((await claiming('made-up')).status, 200);
+    // `isIP` accepts this, but no real address is 8 KB long. Both claims fall
+    // back to the socket address, so they share one window.
+    assert.equal((await claiming(`fe80::1%${'x'.repeat(8 * 1024)}`)).status, 429);
+  });
+
+  test('tracks a bounded number of clients, dropping the oldest', () => {
+    const hit = fixedWindow(1, () => 0, 2);
+
+    assert.equal(hit('1.1.1.1').exceeded, false);
+    assert.equal(hit('1.1.1.1').exceeded, true);
+    hit('2.2.2.2');
+    hit('3.3.3.3');
+    assert.equal(hit('1.1.1.1').exceeded, false);
+  });
+
+  test('does not count the health check', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1 });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      assert.equal((await limited.request('/health')).status, 200);
+    }
+  });
+});
+
+describe('the rest of the surface', () => {
+  test('serves the OpenAPI document and the docs page', async () => {
+    const spec = await json(await get('/openapi.json'));
+    for (const path of [
+      '/v1/companies',
+      '/v1/companies/{ticker}',
+      '/v1/companies/{ticker}/rates/{year}',
+      '/v1/purification/calculate',
+      '/v1/meta',
+    ]) {
+      assert.ok(path in spec.paths, `missing ${path}`);
+    }
+    assert.equal((await get('/docs')).status, 200);
+  });
+
+  test('allows cross-origin calls', async () => {
+    const response = await app.request('/v1/meta', { headers: { Origin: 'https://example.com' } });
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
+  });
+
+  test('404s unknown paths in the error envelope', async () => {
+    const response = await get('/v2/nothing');
+    assert.equal(response.status, 404);
+    assert.equal((await json(response)).error.code, 'NOT_FOUND');
+  });
+
+  test('counts every spelling of a path that reaches an endpoint', async () => {
+    const limited = makeTestApp({ dataset, requestsPerMinute: 1, now: () => 0 });
+    assert.equal((await limited.request('/v1/meta')).status, 200);
+    for (const path of ['/V1/META', '/v1/meta/']) {
+      assert.equal((await limited.request(path)).status, 429, path);
+    }
+  });
+});

@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Pinned exactly and released together. An upgrade also needs
+      # SCALAR_VERSION in src/app.ts updated by hand (see CLAUDE.md).
+      effect:
+        patterns: ["effect", "@effect/*"]
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

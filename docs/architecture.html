@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Naqwa API Internals</title>
+<meta name="description" content="How the Naqwa purification API is put together, and what happens to a request from the socket to the response.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Naskh+Arabic:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f8f7;
+    --surface: #ffffff;
+    --surface-2: #f0f3f2;
+    --border: #dde3e1;
+    --text: #17201d;
+    --muted: #5b6763;
+    --accent: #0f766e;
+    --accent-soft: #d8efec;
+    --ok: #15803d;
+    --ok-soft: #dcf3e3;
+    --warn: #b45309;
+    --warn-soft: #fbecd6;
+    --err: #b91c1c;
+    --err-soft: #fbe0e0;
+    --info: #1d4ed8;
+    --info-soft: #dfe7fb;
+    --code-bg: #f0f3f2;
+    --shadow: 0 1px 2px rgba(16, 24, 22, .06), 0 4px 16px rgba(16, 24, 22, .05);
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --arabic: "Noto Naskh Arabic", "Geeza Pro", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1412;
+      --surface: #151d1a;
+      --surface-2: #1b2521;
+      --border: #2a3632;
+      --text: #e4ebe8;
+      --muted: #94a39e;
+      --accent: #2dd4bf;
+      --accent-soft: #123a35;
+      --ok: #4ade80;
+      --ok-soft: #12321f;
+      --warn: #fbbf24;
+      --warn-soft: #3a2c0d;
+      --err: #f87171;
+      --err-soft: #3d1717;
+      --info: #93b4fd;
+      --info-soft: #18254a;
+      --code-bg: #111916;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1412;
+    --surface: #151d1a;
+    --surface-2: #1b2521;
+    --border: #2a3632;
+    --text: #e4ebe8;
+    --muted: #94a39e;
+    --accent: #2dd4bf;
+    --accent-soft: #123a35;
+    --ok: #4ade80;
+    --ok-soft: #12321f;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c0d;
+    --err: #f87171;
+    --err-soft: #3d1717;
+    --info: #93b4fd;
+    --info-soft: #18254a;
+    --code-bg: #111916;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15.5px/1.65 var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  code, pre, kbd { font-family: var(--mono); font-size: .88em; }
+  :not(pre) > code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: .05em .35em;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.55;
+    margin: 12px 0 18px;
+    max-width: 100%;
+  }
+  pre code { font-size: 12.8px; }
+  .ar { font-family: var(--arabic); direction: rtl; unicode-bidi: isolate; }
+  .c-k { color: var(--accent); }
+  .c-s { color: var(--warn); }
+  .c-c { color: var(--muted); font-style: italic; }
+  .c-n { color: var(--info); }
+
+  /* Layout */
+  .shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 18px 28px 24px; border-right: 1px solid var(--border);
+  }
+  nav.toc .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  nav.toc .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  nav.toc .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 20px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a {
+    display: block; padding: 5px 10px; border-radius: 7px; color: var(--muted);
+    text-decoration: none; font-size: 13.5px;
+  }
+  nav.toc a::before { content: counter(toc, decimal-leading-zero) "  "; font-family: var(--mono); font-size: 11px; opacity: .7; }
+  nav.toc a:hover, nav.toc a.active { background: var(--accent-soft); color: var(--text); }
+  .theme-btn {
+    margin-top: 20px; width: 100%; font: inherit; font-size: 13px; padding: 7px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+  }
+  main { padding: 40px 48px 80px; min-width: 0; }
+  header.hero h1 { font-size: 34px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -.02em; }
+  header.hero p.lead { font-size: 17px; color: var(--muted); max-width: 760px; margin: 0 0 22px; }
+  section { margin-top: 56px; }
+  h2 { font-size: 24px; letter-spacing: -.01em; margin: 0 0 6px; padding-top: 4px; }
+  h2 .num { font-family: var(--mono); font-size: 14px; color: var(--accent); margin-right: 10px; vertical-align: 3px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; }
+  p { margin: 0 0 12px; max-width: 820px; }
+  .section-lead { color: var(--muted); margin-bottom: 18px; }
+  ul.tight { margin: 6px 0 14px; padding-left: 20px; max-width: 820px; }
+  ul.tight li { margin: 4px 0; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 20px 22px; }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat .v { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; max-width: 860px; }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout strong:first-child { display: block; margin-bottom: 2px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin: 12px 0 18px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+
+  .pill { display: inline-block; font-family: var(--mono); font-size: 11.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.get { background: var(--info-soft); color: var(--info); }
+  .pill.post { background: var(--ok-soft); color: var(--ok); }
+  .pill.opt { background: var(--surface-2); color: var(--muted); }
+  .pill.s2 { background: var(--ok-soft); color: var(--ok); }
+  .pill.s4 { background: var(--warn-soft); color: var(--warn); }
+  .pill.s5 { background: var(--err-soft); color: var(--err); }
+
+  /* Repository tree */
+  .tree { font-family: var(--mono); font-size: 13px; line-height: 1.75; }
+  .tree .row { display: grid; grid-template-columns: minmax(180px, 290px) 1fr; gap: 14px; padding: 0 6px; border-radius: 6px; }
+  .tree .row:hover { background: var(--surface-2); }
+  .tree .path { white-space: pre; color: var(--text); }
+  .tree .path.dir { color: var(--accent); font-weight: 500; }
+  .tree .why { font-family: var(--font); color: var(--muted); font-size: 13.5px; }
+
+  /* Diagrams */
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; overflow-x: auto; margin: 14px 0 20px; box-shadow: var(--shadow); }
+  .diagram svg { display: block; width: 100%; min-width: 680px; height: auto; }
+  .diagram .caption { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  svg .box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.2; }
+  svg .box.accent { fill: var(--accent-soft); stroke: var(--accent); }
+  svg .box.ok { fill: var(--ok-soft); stroke: var(--ok); }
+  svg .box.warn { fill: var(--warn-soft); stroke: var(--warn); }
+  svg .t { fill: var(--text); font: 600 13px var(--font); }
+  svg .t2 { fill: var(--muted); font: 400 11.5px var(--font); }
+  svg .tm { fill: var(--muted); font: 400 11px var(--mono); }
+  svg .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+  svg .edge.accent { stroke: var(--accent); }
+  svg .arrowhead { fill: var(--muted); }
+  svg .arrowhead.accent { fill: var(--accent); }
+
+  .flowrow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 14px 0 18px; }
+  .flowrow .node { flex: 1 1 150px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .flowrow .node .h { font-weight: 600; font-size: 14px; }
+  .flowrow .node .d { color: var(--muted); font-size: 12.8px; }
+  .flowrow .node code { font-size: 11.5px; }
+  .flowrow .arrow { align-self: center; color: var(--muted); font-size: 18px; }
+
+  /* Request tracer */
+  .tracer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 18px; align-items: start; }
+  .scenarios { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
+  .scenarios button {
+    font: 500 12.5px var(--font); padding: 6px 11px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  .scenarios button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .stages { list-style: none; margin: 0; padding: 0; position: relative; }
+  .stage {
+    position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px;
+    padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); transition: opacity .2s, border-color .2s, background .2s;
+  }
+  .stage .idx {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    font: 600 12px var(--mono); background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .stage .title { font-weight: 600; font-size: 14.2px; }
+  .stage .where { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .stage .body { font-size: 13.3px; color: var(--muted); margin-top: 2px; }
+  .stage .exitnote { display: none; margin-top: 6px; font-size: 12.5px; font-weight: 600; }
+  .stages.tracing .stage { opacity: .38; }
+  .stages.tracing .stage.visited { opacity: 1; border-color: var(--accent); }
+  .stages.tracing .stage.visited .idx { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .stages.tracing .stage.exit { opacity: 1; }
+  .stages.tracing .stage.exit .exitnote { display: block; }
+  .stages.tracing .stage.exit.ok { border-color: var(--ok); background: var(--ok-soft); }
+  .stages.tracing .stage.exit.ok .idx { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+  .stages.tracing .stage.exit.ok .exitnote { color: var(--ok); }
+  .stages.tracing .stage.exit.bad { border-color: var(--err); background: var(--err-soft); }
+  .stages.tracing .stage.exit.bad .idx { background: var(--err); border-color: var(--err); color: var(--bg); }
+  .stages.tracing .stage.exit.bad .exitnote { color: var(--err); }
+  .stages.tracing .stage.exit.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .stages.tracing .stage.exit.warn .idx { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+  .stages.tracing .stage.exit.warn .exitnote { color: var(--warn); }
+  .result { position: sticky; top: 16px; }
+  .result .req { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+  .result .status { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 2px; }
+  .result .story { font-size: 13.5px; color: var(--muted); margin: 6px 0 10px; }
+  .result h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .result pre { margin: 4px 0 0; max-height: 300px; }
+  .result .hdrs { display: flex; flex-wrap: wrap; gap: 5px; }
+  .result .hdrs span { font: 11.5px var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 14px 0 0; }
+  .tabs button {
+    font: 500 13px var(--font); padding: 8px 12px; border: 1px solid transparent; border-bottom: 0;
+    border-radius: 9px 9px 0 0; background: none; color: var(--muted); cursor: pointer; margin-bottom: -1px;
+  }
+  .tabs button[aria-selected="true"] { background: var(--surface); border-color: var(--border); color: var(--text); }
+  .tabpanel { background: var(--surface); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 14px 14px; padding: 18px 22px; }
+  .tabpanel[hidden] { display: none; }
+  ol.steps { margin: 6px 0 12px; padding-left: 0; list-style: none; counter-reset: st; }
+  ol.steps > li { counter-increment: st; position: relative; padding: 0 0 12px 38px; max-width: 860px; }
+  ol.steps > li::before {
+    content: counter(st); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); font: 600 12px var(--mono); display: grid; place-items: center;
+  }
+  ol.steps > li::after { content: ""; position: absolute; left: 11.5px; top: 28px; bottom: 2px; width: 1px; background: var(--border); }
+  ol.steps > li:last-child::after { display: none; }
+  .ref { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+
+  /* Splitter demo */
+  .demo-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
+  .demo-form label { display: flex; flex-direction: column; font-size: 12.5px; color: var(--muted); gap: 4px; }
+  .demo-form input, .demo-form select {
+    font: 14px var(--font); padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); min-width: 0;
+  }
+  .demo-form .check { flex-direction: row; align-items: center; gap: 8px; padding-top: 22px; }
+  .demo-err { color: var(--err); font-size: 13.5px; font-weight: 500; }
+  .bar { height: 8px; border-radius: 4px; background: var(--accent); opacity: .8; }
+
+  footer { margin-top: 70px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 18px; }
+
+  @media (max-width: 1020px) {
+    .tracer { grid-template-columns: minmax(0, 1fr); }
+    .result { position: static; }
+    .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 820px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 18px 16px; }
+    nav.toc ol { display: flex; flex-wrap: wrap; gap: 4px; }
+    nav.toc a { font-size: 12.5px; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border); }
+    .theme-btn { width: auto; }
+    main { padding: 24px 16px 60px; }
+    header.hero h1 { font-size: 27px; }
+    .grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
+    .tree .row { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 4px 6px; }
+    .tabpanel { padding: 16px; }
+  }
+  @media (max-width: 460px) {
+    .grid.cols-4 { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <div class="brand"><span class="dot"></span>Naqwa API</div>
+    <div class="sub">Codebase and request flow</div>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#layout">Repository map</a></li>
+      <li><a href="#boot">Boot sequence</a></li>
+      <li><a href="#pipeline">Request pipeline</a></li>
+      <li><a href="#endpoints">Endpoint walkthroughs</a></li>
+      <li><a href="#calc">The calculation</a></li>
+      <li><a href="#errors">Errors</a></li>
+      <li><a href="#headers">Headers and limits</a></li>
+      <li><a href="#data">The dataset</a></li>
+      <li><a href="#tests">Tests</a></li>
+      <li><a href="#deploy">Deployment</a></li>
+      <li><a href="#gotchas">Rules and gotchas</a></li>
+    </ol>
+    <button class="theme-btn" id="themeBtn" type="button">Toggle theme</button>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>How the Naqwa purification API works</h1>
+      <p class="lead">A guided tour of <code>naqua-api</code>: what each file is for, how the server starts, and what happens to an HTTP request from the moment Node accepts it to the moment the JSON leaves. File references point at the working tree as of 3 October 2026.</p>
+    </header>
+
+    <!-- 01 OVERVIEW -->
+    <section id="overview">
+      <h2><span class="num">01</span>Overview</h2>
+      <p class="section-lead">A small, read-mostly HTTP API that serves Shariah purification rates for Saudi (Tadawul) stocks, and calculates how much a holder needs to purify. It runs the same arithmetic as the calculator on trynaqua.com, and a test sweep checks that the two produce the same numbers.</p>
+
+      <div class="grid cols-4">
+        <div class="card stat"><div class="v">6</div><div class="l">routes, plus <code>/</code>, <code>/docs</code> and <code>/openapi.json</code></div></div>
+        <div class="card stat"><div class="v">219</div><div class="l">companies in <code>data/companies.json</code></div></div>
+        <div class="card stat"><div class="v">2015–2024</div><div class="l">coverage of the rates</div></div>
+        <div class="card stat"><div class="v">0</div><div class="l">build steps: Node 24 runs the <code>.ts</code> directly</div></div>
+      </div>
+
+      <h3>The stack</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Piece</th><th>What it does here</th></tr>
+        <tr><td>Node 24, type stripping</td><td>Runs <code>src/*.ts</code> as-is, in development and production. Relative imports end in <code>.ts</code>, and there are no enums, namespaces or parameter properties.</td></tr>
+        <tr><td><code>effect@4.0.0</code> (pinned)</td><td><code>Schema</code> validates the data file, decodes requests, encodes responses and generates OpenAPI. <code>effect/http</code> and <code>effect/http-api</code> provide routing and the declarative API. <code>Layer</code> and <code>Context.Service</code> handle dependency wiring.</td></tr>
+        <tr><td><code>@effect/platform-node</code></td><td>Binds the Effect HTTP router to <code>node:http</code> (<code>NodeHttpServer</code>) and runs the program with signal handling (<code>NodeRuntime</code>).</td></tr>
+        <tr><td><code>node:test</code></td><td>Runs the tests. They call the app as a web handler, so no port is opened.</td></tr>
+        <tr><td>Render (free plan)</td><td>Hosts the service. <code>render.yaml</code> runs <code>pnpm install --prod</code>, then <code>node src/server.ts</code>.</td></tr>
+      </table></div>
+
+      <h3>The surface</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Method</th><th>Path</th><th>Answers with</th><th>Rate limited</th></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/v1/companies</code></td><td>Every company, sorted by ticker, with the years that have a rate</td><td>yes</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/v1/companies/{ticker}</code></td><td>One company, with every known year, including years that have a status but no rate</td><td>yes</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/v1/companies/{ticker}/rates/{year}</code></td><td>One year's rate</td><td>yes</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/v1/purification/calculate</code></td><td>The amount to purify for up to 100 holdings, broken down by year</td><td>yes</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/v1/meta</code></td><td>Coverage, data version, unit, formula and limits</td><td>yes</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/health</code></td><td><code>{"status":"ok"}</code></td><td>no</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/</code>, <code>/docs</code>, <code>/openapi.json</code></td><td>An index, the Scalar API reference, and the generated OpenAPI 3.1 document</td><td>no</td></tr>
+      </table></div>
+    </section>
+
+    <!-- 02 LAYOUT -->
+    <section id="layout">
+      <h2><span class="num">02</span>Repository map</h2>
+      <p class="section-lead">The source is split into three layers: <strong>http</strong> (transport and contract), <strong>data</strong> (the file and its validation) and <strong>domain</strong> (plain functions for dates and arithmetic). Dependencies point inward only: the domain imports nothing from http.</p>
+      <div class="card tree">
+        <div class="row"><span class="path dir">src/</span><span class="why"></span></div>
+        <div class="row"><span class="path">  server.ts</span><span class="why">Production entry point. Composes the layers and calls <code>NodeRuntime.runMain</code>.</span></div>
+        <div class="row"><span class="path">  app.ts</span><span class="why"><code>AppLayer</code>: every route, the API's middleware layers and the router middleware.</span></div>
+        <div class="row"><span class="path">  config.ts</span><span class="why"><code>API_VERSION</code> (from package.json), the 100 KB body cap, and <code>PORT</code>, <code>PUBLIC_URL</code> and <code>REQUESTS_PER_MINUTE</code> (60) as Effect <code>Config</code>.</span></div>
+        <div class="row"><span class="path dir">  http/</span><span class="why">Everything about HTTP.</span></div>
+        <div class="row"><span class="path">    api.ts</span><span class="why">The declarative API: four <code>HttpApiGroup</code>s (companies, purification, meta, health), their endpoints, schemas, possible errors, and which middleware each runs. OpenAPI is generated from this file.</span></div>
+        <div class="row"><span class="path">    schemas.ts</span><span class="why">Request and response schemas. Includes the calculation-entry schema and its rules across fields, built from the dataset's coverage.</span></div>
+        <div class="row"><span class="path">    errors.ts</span><span class="why">The error envelope, the <code>Schema.Error</code> classes (each with its HTTP status, 429 and 413 included), and <code>resolveCompany</code>.</span></div>
+        <div class="row"><span class="path">    middleware.ts</span><span class="why"><code>RouterMiddleware</code> (CORS, security headers, and the envelope for an unknown route or a defect), and the API middleware the endpoints declare: <code>RateLimit</code>, <code>DataVersion</code>, <code>JsonBody</code>, <code>RequestValidation</code>.</span></div>
+        <div class="row"><span class="path">    rateLimit.ts</span><span class="why"><code>fixedWindow</code>: a one-minute window per client, held in memory, as a plain function. <code>clientKey</code> picks the client.</span></div>
+        <div class="row"><span class="path dir">    handlers/</span><span class="why">One file per API group. Each implements its group's endpoints against the <code>Dataset</code> service.</span></div>
+        <div class="row"><span class="path">      companies.ts</span><span class="why"><code>list</code>, <code>detail</code>, <code>rate</code></span></div>
+        <div class="row"><span class="path">      purification.ts</span><span class="why"><code>calculate</code>: all-or-nothing, over every entry</span></div>
+        <div class="row"><span class="path">      meta.ts</span><span class="why"><code>meta</code>, and <code>health</code> in a group of its own</span></div>
+        <div class="row"><span class="path dir">  data/</span><span class="why">The dataset file, its schema and its canonical layout.</span></div>
+        <div class="row"><span class="path">    schema.ts</span><span class="why">The <code>companies.json</code> schema, rules across records (duplicate tickers, years outside coverage), and <code>decodeDataset</code>, which lists every problem it finds.</span></div>
+        <div class="row"><span class="path">    dataset.ts</span><span class="why"><code>parseDataset</code> / <code>loadDataset</code>, the <code>Dataset</code> service, and the <code>lookup</code>, <code>publishedRate</code> and <code>overallStatus</code> helpers.</span></div>
+        <div class="row"><span class="path">    format.ts</span><span class="why">Writes the file in its canonical layout: sorted by ticker, one year per line.</span></div>
+        <div class="row"><span class="path dir">  domain/</span><span class="why">Plain functions. No Effect, no HTTP.</span></div>
+        <div class="row"><span class="path">    dates.ts</span><span class="why">UTC day numbers, strict ISO parsing, splitting a holding into calendar years or into 365-day years.</span></div>
+        <div class="row"><span class="path">    purification.ts</span><span class="why"><code>calculateHolding</code>, <code>purificationAmount</code>, <code>sumAmounts</code>, all rounded to 10 dp in the website's order.</span></div>
+        <div class="row"><span class="path dir">data/</span><span class="why"><code>companies.json</code> (the served dataset, edited by hand).</span></div>
+        <div class="row"><span class="path dir">scripts/</span><span class="why"><code>import-legacy.ts</code> (site JSON to dataset), <code>format-dataset.ts</code> (validate and reformat), <code>capture-legacy-fixture.ts</code> (record the site's outputs, run with Bun).</span></div>
+        <div class="row"><span class="path dir">test/</span><span class="why">API, contract, parity, dataset and date tests, plus fixtures.</span></div>
+        <div class="row"><span class="path dir">docs/</span><span class="why">This architecture walkthrough.</span></div>
+        <div class="row"><span class="path">render.yaml</span><span class="why">The Render Blueprint: Frankfurt, free plan, health check on <code>/health</code>.</span></div>
+      </div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 760 250" role="img" aria-label="Module dependency diagram">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <rect class="box accent" x="20" y="20" width="150" height="54" rx="10"/>
+          <text class="t" x="95" y="44" text-anchor="middle">server.ts</text>
+          <text class="t2" x="95" y="62" text-anchor="middle">entry point</text>
+
+          <rect class="box accent" x="220" y="20" width="150" height="54" rx="10"/>
+          <text class="t" x="295" y="44" text-anchor="middle">app.ts</text>
+          <text class="t2" x="295" y="62" text-anchor="middle">AppLayer</text>
+
+          <rect class="box" x="420" y="8" width="320" height="120" rx="10"/>
+          <text class="t" x="436" y="30">http/</text>
+          <text class="tm" x="436" y="52">api.ts · schemas.ts · errors.ts</text>
+          <text class="tm" x="436" y="72">middleware.ts · rateLimit.ts</text>
+          <text class="tm" x="436" y="92">handlers/companies · purification · meta</text>
+          <text class="t2" x="436" y="114">transport, contract, OpenAPI</text>
+
+          <rect class="box" x="420" y="160" width="150" height="76" rx="10"/>
+          <text class="t" x="436" y="184">data/</text>
+          <text class="tm" x="436" y="204">schema · dataset</text>
+          <text class="tm" x="436" y="222">format</text>
+
+          <rect class="box ok" x="600" y="160" width="140" height="76" rx="10"/>
+          <text class="t" x="616" y="184">domain/</text>
+          <text class="tm" x="616" y="204">dates</text>
+          <text class="tm" x="616" y="222">purification</text>
+
+          <rect class="box warn" x="220" y="160" width="150" height="76" rx="10"/>
+          <text class="t" x="295" y="186" text-anchor="middle">data/companies.json</text>
+          <text class="t2" x="295" y="206" text-anchor="middle">read once at boot</text>
+
+          <path class="edge" d="M170,47 L216,47" marker-end="url(#ah)"/>
+          <path class="edge" d="M370,47 L416,47" marker-end="url(#ah)"/>
+          <path class="edge" d="M540,128 L520,156" marker-end="url(#ah)"/>
+          <path class="edge" d="M640,128 L660,156" marker-end="url(#ah)"/>
+          <path class="edge" d="M600,198 L574,198" marker-end="url(#ah)"/>
+          <path class="edge" d="M420,198 L374,198" marker-end="url(#ah)"/>
+        </svg>
+        <div class="caption">Imports point toward the data and the domain. <code>domain/purification.ts</code> imports only <code>publishedRate</code> and two types from <code>data/</code>, and nothing in <code>domain/</code> knows about HTTP.</div>
+      </div>
+    </section>
+
+    <!-- 03 BOOT -->
+    <section id="boot">
+      <h2><span class="num">03</span>Boot sequence</h2>
+      <p class="section-lead">The program is a single <code>Layer</code>. Effect builds each layer before the layers it is provided to, so the order of construction is fixed and visible in <code>src/server.ts</code>.</p>
+
+<pre><code><span class="c-c">// src/server.ts:11</span>
+<span class="c-k">const</span> ServerLayer = HttpRouter.serve(AppLayer).pipe(
+  Layer.provide(NodeHttpServer.layerConfig(createServer, { port: PORT })),
+  Layer.provide(Dataset.layer),
+);
+
+NodeRuntime.runMain(Layer.launch(ServerLayer));</code></pre>
+
+      <div class="diagram">
+        <svg viewBox="0 0 780 330" role="img" aria-label="Layer construction order at boot">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead accent" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <rect class="box warn" x="16" y="20" width="220" height="70" rx="10"/>
+          <text class="t" x="30" y="44">1 · Dataset.layer</text>
+          <text class="t2" x="30" y="62">readFileSync + decodeDataset</text>
+          <text class="t2" x="30" y="78">throws → process exits, old deploy stays</text>
+
+          <rect class="box" x="16" y="110" width="220" height="70" rx="10"/>
+          <text class="t" x="30" y="134">2 · NodeHttpServer.layerConfig</text>
+          <text class="t2" x="30" y="152">node:http createServer</text>
+          <text class="t2" x="30" y="168">PORT from env, default 3000</text>
+
+          <rect class="box" x="16" y="200" width="220" height="70" rx="10"/>
+          <text class="t" x="30" y="224">3 · API middleware layers</text>
+          <text class="t2" x="30" y="242">built inside AppLayer; RateLimit</text>
+          <text class="t2" x="30" y="258">reads Clock and the limit once</text>
+
+          <rect class="box accent" x="290" y="60" width="250" height="210" rx="12"/>
+          <text class="t" x="306" y="84">4 · AppLayer (Layer.unwrap)</text>
+          <text class="t2" x="306" y="104">yield* Dataset, REQUESTS_PER_MINUTE, PUBLIC_URL</text>
+          <text class="t2" x="306" y="120">makeApi({ coverage, rpm, publicUrl })</text>
+          <text class="tm" x="306" y="146">Layer.mergeAll(</text>
+          <text class="tm" x="318" y="164">HttpApiBuilder.layer(api)</text>
+          <text class="tm" x="330" y="180">+ 4 groups, 4 API middleware</text>
+          <text class="tm" x="318" y="198">HttpApiScalar.layerCdn → /docs</text>
+          <text class="tm" x="318" y="216">IndexRoute → /</text>
+          <text class="tm" x="318" y="234">RouterMiddleware (global)</text>
+          <text class="tm" x="306" y="252">)</text>
+
+          <rect class="box ok" x="590" y="100" width="174" height="70" rx="10"/>
+          <text class="t" x="604" y="124">5 · HttpRouter.serve</text>
+          <text class="t2" x="604" y="142">binds router to server</text>
+          <text class="t2" x="604" y="158">Effect's default matching</text>
+
+          <rect class="box ok" x="590" y="196" width="174" height="70" rx="10"/>
+          <text class="t" x="604" y="220">6 · NodeRuntime.runMain</text>
+          <text class="t2" x="604" y="238">Layer.launch: listen forever</text>
+          <text class="t2" x="604" y="254">SIGTERM → graceful stop</text>
+
+          <path class="edge accent" d="M236,55 C262,55 262,110 286,110" marker-end="url(#ah2)"/>
+          <path class="edge accent" d="M236,235 C262,235 262,200 286,200" marker-end="url(#ah2)"/>
+          <path class="edge accent" d="M236,145 C380,145 470,30 640,30 C676,30 676,60 676,96" marker-end="url(#ah2)"/>
+          <path class="edge accent" d="M540,135 L586,135" marker-end="url(#ah2)"/>
+          <path class="edge accent" d="M677,170 L677,192" marker-end="url(#ah2)"/>
+          <text class="t2" x="420" y="300" text-anchor="middle">Dataset feeds both the API definition (coverage in the OpenAPI) and the handlers</text>
+        </svg>
+        <div class="caption">The data file is validated <em>before</em> the port opens. A malformed <code>companies.json</code> crashes the boot, Render's health check never passes, and the previous deploy keeps serving.</div>
+      </div>
+
+      <h3>What each step builds</h3>
+      <ol class="steps">
+        <li><strong>Dataset.</strong> <code>loadDataset()</code> reads <code>data/companies.json</code> and runs <code>decodeDataset</code>, which checks the field schema and the rules across records and lists every problem in one error. <code>parseDataset</code> then adds <code>version</code> (the first 12 hex characters of the file's SHA-256), the list of <code>years</code>, and a <code>lookup(ticker)</code> backed by two <code>Map</code>s. <span class="ref">src/data/dataset.ts:28</span></li>
+        <li><strong>HTTP server.</strong> <code>NodeHttpServer.layerConfig</code> reads <code>PORT</code> through Effect <code>Config</code>, with 3000 as the default. <span class="ref">src/config.ts:10</span></li>
+        <li><strong>API middleware.</strong> <code>RateLimit.layer</code> reads <code>Clock</code> and <code>REQUESTS_PER_MINUTE</code> once when it is built, which is how tests inject a fake clock and a small limit, and keeps a <code>Map&lt;client, {count, resetAt}&gt;</code> in the order the windows opened, capped at 10,000 clients. <code>DataVersion.layer</code> reads the dataset's version. <span class="ref">src/http/middleware.ts · src/http/rateLimit.ts</span></li>
+        <li><strong>The app.</strong> <code>AppLayer</code> is a <code>Layer.unwrap</code> because the API definition depends on runtime values: the calculation schema states the data's real coverage dates, and the OpenAPI description states the rate limit and server URL. It merges the generated API (with <code>/openapi.json</code>, its four handler groups and the layers of its four middleware), the Scalar docs at <code>/docs</code>, the index route, and the router middleware. <span class="ref">src/app.ts</span></li>
+        <li><strong>Serve.</strong> <code>HttpRouter.serve</code> attaches the router to the server, with Effect's default matching: case does not matter and a trailing slash is ignored. Any spelling that reaches an endpoint still runs that endpoint's middleware, rate limit included. <span class="ref">src/server.ts</span></li>
+        <li><strong>Run.</strong> <code>NodeRuntime.runMain(Layer.launch(...))</code> keeps the process alive and turns the SIGTERM Render sends on deploys and spin-downs into an orderly shutdown. <span class="ref">src/server.ts:17</span></li>
+      </ol>
+
+      <div class="callout">
+        <strong>Handlers do their per-boot work once.</strong>
+        Each handler group runs its setup a single time, when the layer is built. <code>companiesHandlers</code> sorts and summarises the whole company list once, and <code>metaHandlers</code> builds the meta object once. A request to either only returns a value that already exists. This is safe because the data changes only with a deploy.
+      </div>
+
+      <h3>The same app, without a server</h3>
+      <p><code>makeTestApp</code> (<span class="ref">test/helpers.ts</span>) provides <code>AppLayer</code> with a given dataset, a <code>ConfigProvider</code> holding the test's rate limit, an optional test <code>Clock</code> and <code>HttpServer.layerServices</code>, then turns it into a <code>(Request) =&gt; Promise&lt;Response&gt;</code> using <code>HttpRouter.toWebHandler</code>, with logging turned off. Every test drives the app this way, so the tests run the same middleware and handlers as production without opening a port.</p>
+    </section>
+
+    <!-- 04 PIPELINE -->
+    <section id="pipeline">
+      <h2><span class="num">04</span>The request pipeline</h2>
+      <p class="section-lead">Two kinds of middleware. The router's, <code>RouterMiddleware</code>, wraps every request and handles what no endpoint sees: CORS, the security headers, an unknown route and a defect. Everything else is API middleware that the endpoints declare in <code>api.ts</code>, so it runs only for them, and the errors it raises are in the OpenAPI document. Pick a scenario to trace its path through the stages.</p>
+
+      <div class="scenarios" id="scenarios" role="group" aria-label="Scenarios"></div>
+
+      <div class="tracer">
+        <ol class="stages" id="stages">
+          <li class="stage" data-stage="recv">
+            <div class="idx">1</div>
+            <div><div class="title">Request arrives</div>
+              <div class="where">node:http → NodeHttpServer → HttpRouter</div>
+              <div class="body">The router middleware wraps everything after this point, the router and every route.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="options">
+            <div class="idx">2</div>
+            <div><div class="title">Is it <code>OPTIONS</code>?</div>
+              <div class="where">middleware.ts · HttpMiddleware.cors</div>
+              <div class="body">Effect's CORS middleware answers every OPTIONS request as a preflight with <code>204</code>, before routing. It allows <code>GET, POST</code> and <code>Content-Type</code>, with a max age of 86400. Any other response gets <code>Access-Control-Allow-Origin: *</code> and the exposed headers.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="route">
+            <div class="idx">3</div>
+            <div><div class="title">Route matching</div>
+              <div class="where">HttpRouter</div>
+              <div class="body">Effect's default matching: case does not matter and a trailing slash is ignored. If no route matches, including a wrong method, the router fails with <code>RouteNotFound</code>, and the router middleware answers <code>404 NOT_FOUND</code>. No endpoint ran, so no quota is used and there are no data headers.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="version">
+            <div class="idx">4</div>
+            <div><div class="title">Data version</div>
+              <div class="where">middleware.ts · DataVersion</div>
+              <div class="body">The outermost middleware of every <code>/v1</code> endpoint. It attaches <code>X-Data-Version</code> to whatever response the request ends with, a typed error included.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="ratelimit">
+            <div class="idx">5</div>
+            <div><div class="title">Rate limit</div>
+              <div class="where">middleware.ts · RateLimit · rateLimit.ts</div>
+              <div class="body">Counts the request against the client's one-minute window. The client key is the first <code>X-Forwarded-For</code> address if it is a real IP address, otherwise the socket address. It attaches the <code>RateLimit-*</code> headers, and past the limit it fails with <code>RateLimited</code>: <code>429</code> with <code>Retry-After</code>. <code>/health</code> is added to the API after this middleware, so it is never counted.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="body">
+            <div class="idx">6</div>
+            <div><div class="title">Body checks</div>
+              <div class="where">middleware.ts · JsonBody (calculate only)</div>
+              <div class="body">A declared <code>Content-Length</code> over 100 KB is refused unread with <code>413</code>. Without the header (a chunked upload), the body is read with a 100 KB cap, and the payload decoder reuses that read. Then the body must be <code>Content-Type: application/json</code>, or the answer is <code>400 VALIDATION_ERROR</code>.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="decode">
+            <div class="idx">7</div>
+            <div><div class="title">Schema decoding</div>
+              <div class="where">HttpApiBuilder · schemas.ts · RequestValidation</div>
+              <div class="body">Path parameters (strings) are decoded to integers, and the payload is parsed and decoded with <code>errors: 'all'</code>. A failure is an <code>HttpApiSchemaError</code>, which <code>RequestValidation</code> turns into <code>400 VALIDATION_ERROR</code> with <code>details: [{path, message}]</code>, or into the "could not be parsed" message if the body was not JSON. Only the three endpoints that take input declare it, so only they document a 400.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="handler">
+            <div class="idx">8</div>
+            <div><div class="title">Handler</div>
+              <div class="where">handlers/*.ts · errors.ts</div>
+              <div class="body">The handler receives typed <code>params</code> or <code>payload</code>. It resolves the ticker and looks up rates. A business failure is <code>yield*</code>-ed as a <code>Schema.Error</code> (<code>UnknownTicker</code>, <code>AmbiguousTicker</code> or <code>RateNotAvailable</code>), and the API encodes it with the status the class declares.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="defect">
+            <div class="idx">9</div>
+            <div><div class="title">Unexpected failure</div>
+              <div class="where">middleware.ts · RouterMiddleware</div>
+              <div class="body">Any other defect, such as an exception thrown inside a handler or a response that fails its own schema, is logged with <code>Effect.logError</code> and answered with <code>500 INTERNAL_ERROR</code>. Nothing internal reaches the client.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="success">
+            <div class="idx">10</div>
+            <div><div class="title">Success encoding</div>
+              <div class="where">api.ts · schemas.ts</div>
+              <div class="body">The handler's value is encoded with the endpoint's <code>success</code> schema into a <code>200</code> JSON response. On a <code>GET</code> (and so a <code>HEAD</code>), <code>DataVersion</code> adds <code>Cache-Control: public, max-age=3600</code>.</div>
+              <div class="exitnote"></div></div>
+          </li>
+          <li class="stage" data-stage="headers">
+            <div class="idx">11</div>
+            <div><div class="title">Decorate the response</div>
+              <div class="where">RouterMiddleware · response handlers</div>
+              <div class="body">The router middleware adds the security headers. As the response is sent, the headers the middleware attached along the way are applied: CORS, and for a <code>/v1</code> endpoint <code>RateLimit-*</code> and <code>X-Data-Version</code>.</div>
+              <div class="exitnote"></div></div>
+          </li>
+        </ol>
+
+        <aside class="card result" id="result" aria-live="polite">
+          <div class="req" id="rReq"></div>
+          <div class="status" id="rStatus"></div>
+          <div class="story" id="rStory"></div>
+          <h4>Extra headers</h4>
+          <div class="hdrs" id="rHdrs"></div>
+          <h4>Body</h4>
+          <pre><code id="rBody"></code></pre>
+        </aside>
+      </div>
+
+      <h3>Where each piece is declared</h3>
+<pre><code><span class="c-c">// src/http/api.ts</span>
+HttpApi.make(<span class="c-s">'naqwa'</span>)
+  .add(companies, purification(coverage), meta)
+  .middleware(RateLimit)      <span class="c-c">// only the groups added so far: everything under /v1</span>
+  .middleware(DataVersion)    <span class="c-c">// the last one added runs first</span>
+  .add(health)
+
+<span class="c-c">// calculate, in the purification group</span>
+.middleware(RequestValidation).middleware(JsonBody)
+
+<span class="c-c">// src/http/middleware.ts: the router's one global middleware</span>
+cors(app.pipe(
+  catch RouteNotFound → <span class="c-n">404</span>, catchDefect → <span class="c-n">500</span>,
+  map(setHeaders(SECURITY_HEADERS)),
+))</code></pre>
+
+      <div class="callout">
+        <strong>Scoped by the API, not by the path.</strong>
+        The rate limit and the data headers belong to the <code>/v1</code> endpoints, so any spelling of a path that reaches one is counted, and nothing else is. An unknown <code>/v1</code> path is answered by the router: <code>404</code>, no quota used, no data headers. The order is explicit: an endpoint's middleware runs in the reverse of the order it was added (<code>DataVersion</code>, <code>RateLimit</code>, <code>JsonBody</code>, <code>RequestValidation</code>), and the router has a single middleware function. The contract test pins the result.
+      </div>
+    </section>
+
+    <!-- 05 ENDPOINTS -->
+    <section id="endpoints">
+      <h2><span class="num">05</span>Endpoint walkthroughs</h2>
+      <p class="section-lead">What happens after the middleware hands the request to the router, endpoint by endpoint.</p>
+
+      <div class="tabs" role="tablist" id="epTabs">
+        <button role="tab" aria-selected="true" aria-controls="ep-list" id="t-list">List companies</button>
+        <button role="tab" aria-selected="false" aria-controls="ep-detail" id="t-detail">Company detail</button>
+        <button role="tab" aria-selected="false" aria-controls="ep-rate" id="t-rate">One rate</button>
+        <button role="tab" aria-selected="false" aria-controls="ep-calc" id="t-calc">Calculate</button>
+        <button role="tab" aria-selected="false" aria-controls="ep-meta" id="t-meta">Meta and health</button>
+        <button role="tab" aria-selected="false" aria-controls="ep-docs" id="t-docs">Docs and index</button>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-list" aria-labelledby="t-list">
+        <p><span class="pill get">GET</span> <code>/v1/companies</code> · <span class="ref">src/http/handlers/companies.ts:15</span></p>
+        <ol class="steps">
+          <li><strong>At boot</strong>, the handler group copies <code>dataset.companies</code>, sorts it by ticker, and maps each company to a summary: <code>ticker</code>, <code>name</code>, <code>aliases</code>, <code>overallStatus(company)</code>, and <code>availableYears</code> (the years with a non-null rate, from <code>publishedRates</code>).</li>
+          <li>It stores <code>{ count, companies }</code> once.</li>
+          <li><strong>Per request</strong>, <code>list: () =&gt; Effect.succeed(list)</code>. No work is done.</li>
+          <li>The <code>CompanyListSchema</code> encodes it. The middleware adds <code>Cache-Control: public, max-age=3600</code>.</li>
+        </ol>
+        <p><code>overallStatus</code> (<span class="ref">src/data/dataset.ts:76</span>) collects the distinct non-null statuses across the company's years. It returns <code>null</code> if there are none, the single status if there is one, and <code>"varies"</code> otherwise. Tickers in <code>unresolved</code> are never listed.</p>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-detail" aria-labelledby="t-detail" hidden>
+        <p><span class="pill get">GET</span> <code>/v1/companies/{ticker}</code> · <span class="ref">src/http/handlers/companies.ts:29</span></p>
+        <ol class="steps">
+          <li>The router matches <code>/v1/companies/:ticker</code>. <code>TickerParams</code> decodes the string to a positive integer. <code>abc</code>, <code>0</code> or <code>-1</code> gets <code>400</code> with <code>details[0].path = "ticker"</code>.</li>
+          <li><code>resolveCompany(dataset, ticker)</code> (<span class="ref">src/http/errors.ts</span>) calls <code>dataset.lookup</code>, which checks the <code>companies</code> map first, then the <code>unresolved</code> map:
+            <ul class="tight">
+              <li><code>found</code>: returns the company</li>
+              <li><code>unresolved</code>: <code>yield* AmbiguousTicker.of(entry)</code> → <span class="pill s4">409</span>, with the candidate names in <code>details.candidates</code></li>
+              <li><code>unknown</code>: <code>yield* UnknownTicker.of(ticker)</code> → <span class="pill s4">404</span></li>
+            </ul></li>
+          <li>The handler maps every recorded year, sorted numerically, to <code>{ year, ratePerShare, status }</code>. This includes years that have a status but a <code>null</code> rate, which is how the API reports, for example, that a company was non-pure in 2015 with no published rate.</li>
+          <li>The response is cacheable for an hour.</li>
+        </ol>
+<pre><code>{ <span class="c-s">"ticker"</span>: <span class="c-n">2330</span>, <span class="c-s">"name"</span>: <span class="c-s">"المتقدمة"</span>, <span class="c-s">"aliases"</span>: [<span class="c-s">"المتقدمة للبتروكيماويات"</span>],
+  <span class="c-s">"overallStatus"</span>: <span class="c-s">"varies"</span>,
+  <span class="c-s">"years"</span>: [ { <span class="c-s">"year"</span>: <span class="c-n">2015</span>, <span class="c-s">"ratePerShare"</span>: <span class="c-k">null</span>,   <span class="c-s">"status"</span>: <span class="c-s">"non-pure"</span> },
+             { <span class="c-s">"year"</span>: <span class="c-n">2021</span>, <span class="c-s">"ratePerShare"</span>: <span class="c-n">0.026</span>,  <span class="c-s">"status"</span>: <span class="c-s">"pure"</span> }, … ] }</code></pre>
+        <p class="ref">Sample from the contract test's small dataset (test/fixtures/contract.json).</p>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-rate" aria-labelledby="t-rate" hidden>
+        <p><span class="pill get">GET</span> <code>/v1/companies/{ticker}/rates/{year}</code> · <span class="ref">src/http/handlers/companies.ts:46</span></p>
+        <ol class="steps">
+          <li><code>RateParams</code> decodes <code>ticker</code> (a positive integer) and <code>year</code> (an integer). The year is not checked against the coverage here. A year outside it is a <code>404</code>, not a <code>400</code>.</li>
+          <li><code>resolveCompany</code>, as for the detail endpoint (404 / 409).</li>
+          <li><code>publishedRate(company, year)</code> (<span class="ref">src/data/dataset.ts:61</span>) returns <code>null</code> if the year is missing or its rate is <code>null</code>. A status alone cannot be used to calculate anything.</li>
+          <li><code>null</code> → <code>yield* RateNotAvailable.of(...)</code> → <span class="pill s4">404 RATE_NOT_AVAILABLE</span>.</li>
+          <li>Otherwise it returns <code>{ ticker, name, year, ratePerShare, status }</code>.</li>
+        </ol>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-calc" aria-labelledby="t-calc" hidden>
+        <p><span class="pill post">POST</span> <code>/v1/purification/calculate</code> · <span class="ref">src/http/handlers/purification.ts</span></p>
+        <ol class="steps">
+          <li><strong>Middleware:</strong> <code>DataVersion</code> and the rate limit, as on every <code>/v1</code> endpoint, then <code>JsonBody</code>: the 100 KB cap, then <code>Content-Type: application/json</code>.</li>
+          <li><strong>Payload decoding</strong> with <code>calculationRequestSchema(coverage)</code> (<span class="ref">src/http/schemas.ts:188</span>): <code>entries</code> must have 1–100 items, and each entry is checked field by field (<code>ticker</code> a positive integer, <code>shares</code> finite and in (0, 1e12], and so on). All field errors are reported together.</li>
+          <li><strong>Rules across fields</strong> (<span class="ref">src/http/schemas.ts:131</span>) run per entry, and only the first broken rule is reported, in the order a person would fix them:
+            <ul class="tight">
+              <li>The entry must be in exactly one mode. Date mode uses <code>purchaseDate</code> with either <code>saleDate</code> or <code>stillOwned</code>. Days mode uses <code>year</code> with <code>daysOwned</code>.</li>
+              <li>Days mode: <code>year</code> must be within the coverage, and <code>daysOwned ≤ (lastYear − year + 1) × 365</code>.</li>
+              <li>Date mode: <code>purchaseDate</code> must be a real date (<code>2023-02-30</code> is rejected) inside the coverage, <code>saleDate</code> is required unless <code>stillOwned</code> is set, <code>saleDate</code> cannot be after the coverage end, and the sale date must be after the purchase date.</li>
+            </ul></li>
+          <li><strong>The handler</strong> runs <code>Effect.forEach</code> over the entries, in order, and it stops at the first failure. For each one:
+            <ul class="tight">
+              <li><code>resolveCompany(dataset, ticker, { entryIndex })</code>. A failure stops the whole request with <code>details.entryIndex</code>.</li>
+              <li><code>toPeriod(entry, coverage)</code> (<span class="ref">purification.ts:13</span>) builds a <code>HoldingPeriod</code>: <code>{kind:'dates', start, end}</code>, where <code>end</code> is the sale day or the coverage end day for <code>stillOwned</code>, or <code>{kind:'days', startYear, days}</code>.</li>
+              <li><code>calculateHolding(company, shares, period)</code> splits the period into year segments and prices each one. If any year has no rate, it returns <code>{ok:false, missingYear}</code>, and the handler fails with <span class="pill s4">422 RATE_NOT_AVAILABLE</span>.</li>
+            </ul></li>
+          <li><strong>Totals.</strong> <code>totalPurificationAmount</code> is <code>sumAmounts</code> over every year row of every entry, not over the per-entry subtotals, because that is how the website sums. Each entry also has its own <code>purificationAmount</code>.</li>
+          <li><strong>Response:</strong> <code>{ currency: "SAR", totalPurificationAmount, entries: [{ index, ticker, companyName, shares, purificationAmount, years: [...] }] }</code>. It is not cached.</li>
+        </ol>
+        <div class="callout"><strong>All or nothing.</strong> A calculation never returns partial results. The first entry that fails decides the response, and <code>details.entryIndex</code> names it, so a client can point at the exact row.</div>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-meta" aria-labelledby="t-meta" hidden>
+        <p><span class="pill get">GET</span> <code>/v1/meta</code> and <span class="pill get">GET</span> <code>/health</code> · <span class="ref">src/http/handlers/meta.ts</span></p>
+        <ol class="steps">
+          <li>At boot, the group builds one object: <code>apiVersion</code> (from package.json), <code>dataVersion</code> (the SHA-256 prefix), <code>coverage</code> with its list of <code>years</code>, <code>unit</code>, <code>formula</code>, <code>companyCount</code>, the sorted <code>unresolvedTickers</code>, <code>rateLimit.requestsPerMinute</code> (the <code>REQUESTS_PER_MINUTE</code> config, so a test's limit shows here too) and <code>maxEntriesPerRequest</code>.</li>
+          <li><code>/v1/meta</code> returns that object. It is rate limited and cacheable.</li>
+          <li><code>/health</code> returns <code>{"status":"ok"}</code>. Its group is added to the API after the <code>/v1</code> middleware, so it gets no rate limit and no data headers, and an uptime monitor can poll it freely. Render's <code>healthCheckPath</code> uses it.</li>
+        </ol>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="ep-docs" aria-labelledby="t-docs" hidden>
+        <p><span class="pill get">GET</span> <code>/</code>, <code>/docs</code>, <code>/openapi.json</code> · <span class="ref">src/app.ts · src/http/api.ts</span></p>
+        <ol class="steps">
+          <li><code>/</code> is a plain <code>HttpRouter.add</code> route that returns the API name, version and links.</li>
+          <li><code>/openapi.json</code> is generated by <code>HttpApiBuilder.layer(api, { openapiPath })</code> from the same <code>HttpApi</code> value the handlers implement. Endpoint summaries, schema <code>identifier</code>s, <code>examples</code>, <code>description</code>s, and the errors each endpoint can return all come from <code>api.ts</code>, <code>schemas.ts</code> and <code>errors.ts</code>.</li>
+          <li><code>/docs</code> is Scalar's API reference from <code>HttpApiScalar.layerCdn</code>. The page embeds that document and loads Scalar from jsDelivr, at the version <code>effect</code> bundles (<code>SCALAR_VERSION</code> in <code>app.ts</code>).</li>
+          <li>An endpoint documents the errors of the middleware it runs: 429 on every <code>/v1</code> endpoint (<code>RateLimit</code>), 413 on calculate (<code>JsonBody</code>), and 400 only on the endpoints that take input (<code>RequestValidation</code>).</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 06 CALC -->
+    <section id="calc">
+      <h2><span class="num">06</span>The calculation</h2>
+      <p class="section-lead">The domain layer (<code>src/domain</code>) has no Effect and no HTTP. It works in <strong>UTC day numbers</strong>, which are whole days since 1970-01-01. With no time of day and no time zone, daylight saving and the server's locale cannot change a day count.</p>
+
+      <div class="grid cols-2">
+        <div class="card">
+          <h3 style="margin-top:0">Date mode</h3>
+          <p><code>splitDateRangeIntoYears(start, end)</code> (<span class="ref">dates.ts:32</span>) walks from <code>start</code> to the next 1 January, or to <code>end</code> if that comes first, and repeats. <strong>The end day is excluded</strong>: a full year runs from 1 January to the next 1 January, which is 365 or 366 days.</p>
+          <p><code>stillOwned</code> uses the coverage end day (<code>2024-12-31</code>) as the excluded end, so 2024 counts 365 days.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Days mode</h3>
+          <p><code>splitDaysIntoYears(startYear, days)</code> (<span class="ref">dates.ts:46</span>) has no calendar. It cuts the count into consecutive 365-day blocks starting at <code>startYear</code>, and ignores leap days.</p>
+          <p>Validation caps <code>daysOwned</code> so the last block never goes past the coverage.</p>
+        </div>
+      </div>
+
+      <h3>Pricing each year</h3>
+<pre><code><span class="c-c">// src/domain/purification.ts</span>
+roundAmount        = v =&gt; Number(v.toFixed(<span class="c-n">10</span>))
+purificationAmount = (shares, rate, days) =&gt; roundAmount((shares * rate * days) / <span class="c-n">365</span>)
+sumAmounts         = amounts =&gt; roundAmount(amounts.reduce((t, a) =&gt; t + a, <span class="c-n">0</span>))</code></pre>
+      <p>Each year is rounded to 10 decimal places, and each sum is rounded again, in the same order as the website's calculator. Changing the order (for example, summing unrounded values) would change the last digit, and the parity test would fail. The divisor is always 365, even for a 366-day leap year held in full.</p>
+
+      <h3>Worked example</h3>
+      <p>100 shares of 2330, bought <code>2021-03-01</code> and sold <code>2023-06-30</code>, with rates 2021 = 0.026, 2022 = 0.018 and 2023 = 0.0203:</p>
+      <div class="table-wrap"><table>
+        <tr><th>Year</th><th>Segment</th><th>Days</th><th>shares × rate × days / 365</th><th>Rounded</th></tr>
+        <tr><td>2021</td><td>2021-03-01 → 2022-01-01</td><td>306</td><td>100 × 0.026 × 306 / 365</td><td><code>2.1797260274</code></td></tr>
+        <tr><td>2022</td><td>2022-01-01 → 2023-01-01</td><td>365</td><td>100 × 0.018 × 365 / 365</td><td><code>1.8</code></td></tr>
+        <tr><td>2023</td><td>2023-01-01 → 2023-06-30</td><td>180</td><td>100 × 0.0203 × 180 / 365</td><td><code>1.0010958904</code></td></tr>
+        <tr><td colspan="4"><strong>Entry total</strong> (sumAmounts)</td><td><code>4.9808219178</code></td></tr>
+      </table></div>
+
+      <h3>Try the year splitter</h3>
+      <p>This runs the same splitting logic in your browser. It uses one illustrative rate for every year. The real API looks up each year's own rate and returns <code>422</code> if any year has none.</p>
+      <div class="card">
+        <div class="demo-form">
+          <label>Mode
+            <select id="dMode"><option value="dates">Date mode</option><option value="days">Days mode</option></select>
+          </label>
+          <label>Shares <input id="dShares" type="number" value="100" min="0" step="any"></label>
+          <label>Rate per share (SAR) <input id="dRate" type="number" value="0.02" min="0" step="any"></label>
+          <label class="m-dates">Purchase date <input id="dStart" type="date" value="2021-03-01" min="2015-01-01" max="2024-12-31"></label>
+          <label class="m-dates">Sale date <input id="dEnd" type="date" value="2023-06-30" min="2015-01-01" max="2024-12-31"></label>
+          <label class="m-dates check"><input id="dOwned" type="checkbox"> Still owned</label>
+          <label class="m-days" hidden>Start year <input id="dYear" type="number" value="2022" min="2015" max="2024"></label>
+          <label class="m-days" hidden>Days owned <input id="dDays" type="number" value="500" min="1"></label>
+        </div>
+        <div id="dOut"></div>
+      </div>
+    </section>
+
+    <!-- 07 ERRORS -->
+    <section id="errors">
+      <h2><span class="num">07</span>Errors</h2>
+      <p class="section-lead">Every error, whatever produced it, has the same body. Clients branch on <code>code</code>, which is stable. The wording of messages is not part of the contract.</p>
+<pre><code>{ <span class="c-s">"error"</span>: {
+    <span class="c-s">"code"</span>: <span class="c-s">"RATE_NOT_AVAILABLE"</span>,
+    <span class="c-s">"message"</span>: { <span class="c-s">"ar"</span>: <span class="c-s">"نسبة التطهير لشركة المتقدمة في السنة 2015 غير متوفرة."</span>,
+                 <span class="c-s">"en"</span>: <span class="c-s">"No purification rate is published for المتقدمة in 2015."</span> },
+    <span class="c-s">"details"</span>: { <span class="c-s">"ticker"</span>: <span class="c-n">2330</span>, <span class="c-s">"year"</span>: <span class="c-n">2015</span>, <span class="c-s">"entryIndex"</span>: <span class="c-n">1</span> } } }</code></pre>
+
+      <div class="table-wrap"><table>
+        <tr><th>Code</th><th>Status</th><th>Produced by</th><th>When</th></tr>
+        <tr><td><code>VALIDATION_ERROR</code></td><td><span class="pill s4">400</span></td><td><code>RequestValidation</code>, or <code>JsonBody</code></td><td>Bad path parameter or payload (with <code>details</code>), a body that does not parse, or the wrong <code>Content-Type</code></td></tr>
+        <tr><td><code>UNKNOWN_TICKER</code></td><td><span class="pill s4">404</span></td><td><code>UnknownTicker</code> class</td><td>The ticker is in neither <code>companies</code> nor <code>unresolved</code></td></tr>
+        <tr><td><code>RATE_NOT_AVAILABLE</code></td><td><span class="pill s4">404</span> / <span class="pill s4">422</span></td><td><code>RateNotAvailable</code> class</td><td>404 on a rate lookup. 422 in a calculation, through <code>HttpApiSchema.status(422)</code> on that endpoint</td></tr>
+        <tr><td><code>AMBIGUOUS_TICKER</code></td><td><span class="pill s4">409</span></td><td><code>AmbiguousTicker</code> class</td><td>The ticker is listed in <code>unresolved</code>. The API refuses to guess</td></tr>
+        <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td><span class="pill s4">413</span></td><td><code>PayloadTooLarge</code> class, from <code>JsonBody</code></td><td>Body over 100 KB, declared or as read</td></tr>
+        <tr><td><code>RATE_LIMITED</code></td><td><span class="pill s4">429</span></td><td><code>RateLimited</code> class, from <code>RateLimit</code></td><td>Over 60 requests to <code>/v1</code> endpoints in the client's current minute</td></tr>
+        <tr><td><code>NOT_FOUND</code></td><td><span class="pill s4">404</span></td><td>router middleware (<code>notFound</code>)</td><td>No route, or the wrong method</td></tr>
+        <tr><td><code>INTERNAL_ERROR</code></td><td><span class="pill s5">500</span></td><td>router middleware (<code>internalError</code>)</td><td>Any defect, including a response that fails its own schema. It is logged and the details are hidden</td></tr>
+      </table></div>
+
+      <h3>How a typed error becomes a response</h3>
+      <ol class="steps">
+        <li>Each business error is a <code>Schema.Error</code> class whose fields <em>are</em> the envelope (<code>{ error: { code, message, details? } }</code>), with <code>httpApiStatus</code> set on the class (<span class="ref">src/http/errors.ts:24</span>).</li>
+        <li>A static <code>of(...)</code> builds the bilingual body, using <code>errorBody(code, ar, en, details)</code>.</li>
+        <li>Inside an <code>Effect.gen</code> or <code>Effect.fn</code>, <code>return yield* UnknownTicker.of(t)</code> fails the effect with that value. The error type is checked against the endpoint's declared <code>error: [...]</code> list.</li>
+        <li><code>HttpApiBuilder</code> encodes the error with its schema and uses its status. The endpoint can override the status, which is how calculate turns <code>RateNotAvailable</code> into a 422.</li>
+        <li>The project rule: <strong>only <code>middleware.ts</code> builds an error response by hand.</strong> Those are the two cases the router answers itself, a route that does not exist and a defect, where no endpoint's error schema applies.</li>
+      </ol>
+    </section>
+
+    <!-- 08 HEADERS -->
+    <section id="headers">
+      <h2><span class="num">08</span>Headers and limits</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Header</th><th>On</th><th>Value and purpose</th></tr>
+        <tr><td><code>Access-Control-Allow-Origin</code></td><td>every response</td><td><code>*</code>. The API is public and has no credentials.</td></tr>
+        <tr><td><code>Access-Control-Expose-Headers</code></td><td>every response</td><td>Lets browser JavaScript read <code>RateLimit-*</code>, <code>Retry-After</code> and <code>X-Data-Version</code>.</td></tr>
+        <tr><td>Security headers</td><td>every response</td><td>HSTS and <code>X-Content-Type-Options: nosniff</code>, which matter for every response, and <code>X-Frame-Options: SAMEORIGIN</code> and <code>Referrer-Policy: no-referrer</code> for the docs page, the only HTML. Not on a preflight.</td></tr>
+        <tr><td><code>RateLimit-Limit</code> / <code>-Remaining</code> / <code>-Reset</code></td><td>every response from a <code>/v1</code> endpoint</td><td>The limit, the requests left in the window, and the seconds until it resets (at least 1).</td></tr>
+        <tr><td><code>Retry-After</code></td><td>429 only</td><td>The same number as <code>RateLimit-Reset</code>.</td></tr>
+        <tr><td><code>X-Data-Version</code></td><td>every response from a <code>/v1</code> endpoint</td><td>The first 12 hex characters of the SHA-256 of <code>companies.json</code>. It changes whenever the data does.</td></tr>
+        <tr><td><code>Cache-Control</code></td><td>a successful GET or HEAD to a <code>/v1</code> endpoint</td><td><code>public, max-age=3600</code>. These reads only change with a deploy.</td></tr>
+        <tr><td><code>Access-Control-Max-Age</code>, <code>-Allow-Methods</code>, <code>-Allow-Headers</code></td><td>OPTIONS (204)</td><td>The preflight answer, valid for a day.</td></tr>
+      </table></div>
+
+      <h3>The rate limiter</h3>
+      <ul class="tight">
+        <li><strong>A fixed window, not a sliding one.</strong> A client's first request opens a 60-second window, and the count resets when it expires (<code>fixedWindow</code>, <span class="ref">rateLimit.ts</span>).</li>
+        <li><strong>Bounded memory.</strong> Windows are kept in the order they opened, and they all last a minute, so each request first drops the expired ones from the front of the <code>Map</code>. Past 10,000 clients, the oldest window is dropped to make room, so made-up addresses cannot run the process out of memory.</li>
+        <li><strong>Client key.</strong> The first <code>X-Forwarded-For</code> entry if it is a real IP address (at most 45 characters, which rules out an IPv6 zone of any length), with the socket address as the fallback, which is also the key in local runs. Whether Render's proxy lets a client choose that entry is unverified (the README's Deployment section has a check), so the limit is a courtesy, not a security boundary.</li>
+        <li><strong>One process only.</strong> Counters live in memory, so they are correct only for a single instance and reset on every restart.</li>
+      </ul>
+    </section>
+
+    <!-- 09 DATA -->
+    <section id="data">
+      <h2><span class="num">09</span>The dataset</h2>
+      <p class="section-lead">The API serves one JSON file that is committed to the repository. It is generated once from the website's data, then edited by hand and reviewed as a diff.</p>
+
+      <div class="flowrow">
+        <div class="node"><div class="h">pure-percentages.json</div><div class="d">The website's data (mixed legacy shapes, or schema v2 <code>{value, status}</code> cells)</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">pnpm data:import</div><div class="d"><code>scripts/import-legacy.ts</code> normalises, merges duplicate rows, and never guesses</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">companies.json + console report</div><div class="d">Canonical layout, plus a report of every change the import made</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">pnpm data:format</div><div class="d">Validates and restores the layout after a hand edit</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">Boot: parseDataset</div><div class="d">Validated again, hashed, indexed. A bad file stops the deploy</div></div>
+      </div>
+
+<pre><code>{
+  <span class="c-s">"schemaVersion"</span>: <span class="c-n">1</span>,
+  <span class="c-s">"unit"</span>: <span class="c-s">"SAR to purify per share held for a full year"</span>,
+  <span class="c-s">"coverage"</span>: { <span class="c-s">"start"</span>: <span class="c-s">"2015-01-01"</span>, <span class="c-s">"end"</span>: <span class="c-s">"2024-12-31"</span> },
+  <span class="c-s">"companies"</span>: [
+    {
+      <span class="c-s">"ticker"</span>: <span class="c-n">2330</span>,
+      <span class="c-s">"name"</span>: <span class="c-s">"المتقدمة"</span>,
+      <span class="c-s">"aliases"</span>: [],
+      <span class="c-s">"years"</span>: {
+        <span class="c-s">"2015"</span>: { <span class="c-s">"rate"</span>: <span class="c-n">0.0199</span>, <span class="c-s">"status"</span>: <span class="c-s">"mixed"</span> },   <span class="c-c">← one year per line</span>
+        …
+  ],
+  <span class="c-s">"unresolved"</span>: []   <span class="c-c">← tickers the source gives to 2+ companies</span>
+}</code></pre>
+
+      <h3>Validation at load</h3>
+      <p><code>decodeDataset</code> (<span class="ref">src/data/schema.ts</span>) decodes the file once, with <code>errors: 'all'</code> and <code>onExcessProperty: 'error'</code>:</p>
+      <ul class="tight">
+        <li><strong>Fields.</strong> Tickers are integers from 1000 to 9999. Names are trimmed and non-empty. A rate is finite and ≥ 0, or <code>null</code>. A status is one of <code>pure</code>, <code>mixed</code>, <code>non-pure</code> or <code>public-sector</code>, or <code>null</code>. A year with neither a rate nor a status is an error, because it should be left out.</li>
+        <li><strong>Rules across records</strong> (<code>crossRecordIssues</code>, a <code>check</code> on <code>DatasetSchema</code>). <code>coverage.start &lt; end</code>, no ticker appears twice across <code>companies</code> and <code>unresolved</code>, and every year key is inside the coverage. Effect runs them once every field is valid, so a broken field is reported first and these on the next run.</li>
+      </ul>
+      <p>If there are any problems, it throws one <code>Error</code> that lists them as <code>path: message</code>.</p>
+
+      <h3>Concepts worth knowing</h3>
+      <ul class="tight">
+        <li><strong>Classification is per year.</strong> There is no company-wide category. <code>overallStatus</code> is derived from the years.</li>
+        <li><strong>Published means it has a rate.</strong> A year with only a status shows up in the company detail, but cannot be priced.</li>
+        <li><strong><code>public-sector</code></strong> is the site's former <code>Aramco</code> category: a state-owned company treated as permissible.</li>
+        <li><strong><code>unresolved</code></strong> keeps every candidate verbatim for a ticker the source assigns to two companies. Lookups return 409 until the owner decides. Never fill one in by guessing. The real data currently has none, so the tests add a fake ticker, <code>9998</code>.</li>
+        <li><strong>Canonical layout</strong> (<code>src/data/format.ts</code>): sorted by ticker, years sorted, one year per line, so a rate change is a one-line diff. A test fails if the file drifts from this layout.</li>
+      </ul>
+    </section>
+
+    <!-- 10 TESTS -->
+    <section id="tests">
+      <h2><span class="num">10</span>Tests</h2>
+      <p class="section-lead"><code>pnpm check</code> runs typecheck, lint and test, which is what CI runs. All HTTP tests go through <code>makeTestApp</code>, so they run the real middleware and handlers in memory.</p>
+      <div class="grid cols-2">
+        <div class="card"><h3 style="margin-top:0">api.test.ts</h3><p>Behaviour by endpoint: listing, detail, rates, calculation in both modes, validation messages, size limits, the 404/409/422 paths with <code>entryIndex</code>, meta, rate limiting with a fake clock (that <code>/health</code> is not counted, and that every spelling of a path reaching an endpoint is), and CORS.</p></div>
+        <div class="card"><h3 style="margin-top:0">contract.test.ts</h3><p>Pins the status, every header, and the body for about 35 requests covering every endpoint and every error code, in <code>fixtures/contract.json</code>. It runs on its own two-company dataset, so editing the real data does not affect it. To re-record after an intended change: <code>UPDATE_CONTRACT=1 pnpm test</code>.</p></div>
+        <div class="card"><h3 style="margin-top:0">parity.test.ts</h3><p>Compares the API with outputs recorded from the website's own calculator (<code>fixtures/legacy-site.json</code>): every company × year rate, and about 1,700 generated holdings in both modes, to the last decimal. Allowed differences are pinned in <code>legacy-differences.json</code>. A new difference fails the test, and so does a pinned one that disappears.</p></div>
+        <div class="card"><h3 style="margin-top:0">dataset.test.ts / dates.test.ts</h3><p>Data-file validation (every kind of problem is reported), the canonical layout check, and the date arithmetic: strict parsing, leap years, year boundaries, and an excluded end day.</p></div>
+      </div>
+      <h3>Helpers</h3>
+      <p><code>test/helpers.ts</code> exports <code>app</code> (the real dataset, a limit that never trips), <code>disputedApp</code> (the real dataset plus the fake ambiguous ticker <code>9998</code>), <code>makeTestApp({ now })</code> with a hand-built <code>Clock</code> for rate-limit tests, and the shortcuts <code>get</code>, <code>calculate</code> and <code>json</code>.</p>
+    </section>
+
+    <!-- 11 DEPLOY -->
+    <section id="deploy">
+      <h2><span class="num">11</span>Deployment</h2>
+      <div class="flowrow">
+        <div class="node"><div class="h">push to main</div><div class="d"><code>autoDeploy: true</code></div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">corepack pnpm install --frozen-lockfile --prod</div><div class="d">no build step, no artifact</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">node src/server.ts</div><div class="d">validates the data, then listens on <code>$PORT</code></div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="h">/health check</div><div class="d">passes, and the new deploy takes traffic</div></div>
+      </div>
+      <ul class="tight">
+        <li>Render free plan, Frankfurt region (the closest to Saudi Arabia), custom domain <code>api.trynaqua.com</code>.</li>
+        <li>Production runs exactly the source the tests ran, because there is no build.</li>
+        <li>The free plan sleeps after about 15 idle minutes. An uptime monitor on <code>/health</code> both alerts and keeps the service awake.</li>
+        <li>To roll back: Render → <code>naqwa-api</code> → Events → an earlier deploy → Rollback.</li>
+      </ul>
+    </section>
+
+    <!-- 12 GOTCHAS -->
+    <section id="gotchas">
+      <h2><span class="num">12</span>Rules and gotchas</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Rule</th><th>Why</th></tr>
+        <tr><td>No build step and no bundler. Relative imports end in <code>.ts</code>, type imports use <code>import type</code>, and there are no enums or parameter properties.</td><td>Node strips types at runtime. <code>erasableSyntaxOnly</code> and the linter enforce this.</td></tr>
+        <tr><td><code>effect</code> is pinned exactly.</td><td>Its HTTP modules are unstable. Upgrade on purpose and let the contract test catch drift.</td></tr>
+        <tr><td>Import <code>@effect/platform-node/NodeRuntime</code> by module path.</td><td>The package index also loads a Redis client.</td></tr>
+        <tr><td>Dates are UTC day numbers, never local <code>Date</code>s.</td><td>Day counts must not depend on the server's time zone.</td></tr>
+        <tr><td>Do not reorder the rounding.</td><td>The website rounds each year to 10 dp, then sums. The total is over every year row.</td></tr>
+        <tr><td>Never guess a fix for an <code>unresolved</code> ticker.</td><td>That is the data owner's call.</td></tr>
+        <tr><td>Regenerate <code>contract.json</code> or <code>legacy-differences.json</code> only for an intended change, and review the diff.</td><td>They exist to catch unintended changes.</td></tr>
+        <tr><td>Review the import report printed to the console.</td><td>It is generated by <code>pnpm data:import</code>.</td></tr>
+        <tr><td>Use <code>Effect.gen</code> inline and <code>Effect.fn('name')</code> for reusable effectful functions. Services are <code>Context.Service</code> classes with a static <code>layer</code>.</td><td>House style. <code>src/domain</code> stays plain functions.</td></tr>
+      </table></div>
+    </section>
+
+    <footer>
+      Generated from the source of <code>naqua-api</code> (3 October 2026, updated 4 October 2026). Samples come from <code>test/fixtures/contract.json</code>. For the public API reference, see <code>/docs</code> on a running server.
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Theme toggle (per-viewer convenience only)
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem('naqwa-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var current = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('naqwa-theme', next); } catch (e) {}
+  });
+
+  // Active TOC link
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + en.target.id); });
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+
+  // Tabs
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('#epTabs [role=tab]'));
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { select(i); });
+    tab.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { select((i + 1) % tabs.length); tabs[(i + 1) % tabs.length].focus(); }
+      if (e.key === 'ArrowLeft') { select((i - 1 + tabs.length) % tabs.length); tabs[(i - 1 + tabs.length) % tabs.length].focus(); }
+    });
+  });
+  function select(i) {
+    tabs.forEach(function (t, j) {
+      t.setAttribute('aria-selected', String(i === j));
+      document.getElementById(t.getAttribute('aria-controls')).hidden = i !== j;
+    });
+  }
+
+  // Request tracer
+  var V1 = ['recv', 'options', 'route', 'version', 'ratelimit'];
+  var CALC = V1.concat(['body']);
+  var RL = ['RateLimit-Limit: 60', 'RateLimit-Remaining: 59', 'RateLimit-Reset: 60'];
+  var DV = 'X-Data-Version: 7f6530f2a2fa';
+  var err = function (code, en, details) {
+    var o = { error: { code: code, message: { ar: '…', en: en } } };
+    if (details) o.error.details = details;
+    return JSON.stringify(o, null, 2);
+  };
+  var scenarios = [
+    { label: 'GET company', req: 'GET /v1/companies/2330', visit: V1.concat(['decode', 'handler', 'success', 'headers']), exit: 'success', kind: 'ok', status: '200 OK',
+      note: 'Returned from the dataset.', story: 'resolveCompany finds 2330, and every recorded year is mapped and sorted. The response is cacheable.',
+      headers: RL.concat([DV, 'Cache-Control: public, max-age=3600']),
+      body: '{\n  "ticker": 2330,\n  "name": "المتقدمة",\n  "aliases": ["المتقدمة للبتروكيماويات"],\n  "overallStatus": "varies",\n  "years": [ { "year": 2015, "ratePerShare": null, "status": "non-pure" }, … ]\n}' },
+    { label: 'POST calculate', req: 'POST /v1/purification/calculate\n{"entries":[{"ticker":2330,"shares":100,"purchaseDate":"2021-03-01","saleDate":"2023-06-30"}, …]}', visit: CALC.concat(['decode', 'handler', 'success', 'headers']), exit: 'success', kind: 'ok', status: '200 OK',
+      note: 'Every entry priced, year by year.', story: 'The payload passes the field and cross-field checks. Each entry is resolved, split into years and priced. The total is summed over every year row.',
+      headers: RL.concat([DV]),
+      body: '{\n  "currency": "SAR",\n  "totalPurificationAmount": 5.5019726027,\n  "entries": [\n    { "index": 0, "ticker": 2330, "purificationAmount": 4.9808219178,\n      "years": [ { "year": 2021, "daysOwned": 306, … }, … ] },\n    …\n  ]\n}' },
+    { label: 'Unknown ticker in entry 1', req: 'POST /v1/purification/calculate  (entries[1].ticker = 9999)', visit: CALC.concat(['decode', 'handler', 'headers']), exit: 'handler', kind: 'warn', status: '404 Not Found',
+      note: 'yield* UnknownTicker.of(9999, { entryIndex: 1 })', story: 'Entry 0 is priced, then entry 1 fails to resolve. Effect.forEach stops at the first failure, so nothing is returned except the error.',
+      headers: RL.concat([DV]),
+      body: err('UNKNOWN_TICKER', 'No company with ticker 9999 is in the database.', { ticker: 9999, entryIndex: 1 }) },
+    { label: 'Year with no rate', req: 'POST /v1/purification/calculate  (entries[1]: 2330, year 2015, 10 days)', visit: CALC.concat(['decode', 'handler', 'headers']), exit: 'handler', kind: 'warn', status: '422 Unprocessable Entity',
+      note: 'calculateHolding → { ok: false, missingYear: 2015 }', story: 'The year has a status but no rate. The calculate endpoint overrides RateNotAvailable\'s status to 422.',
+      headers: RL.concat([DV]),
+      body: err('RATE_NOT_AVAILABLE', 'No purification rate is published for المتقدمة in 2015.', { ticker: 2330, year: 2015, entryIndex: 1 }) },
+    { label: 'Ambiguous ticker', req: 'GET /v1/companies/9998', visit: V1.concat(['decode', 'handler', 'headers']), exit: 'handler', kind: 'warn', status: '409 Conflict',
+      note: 'lookup → unresolved → AmbiguousTicker', story: 'The ticker is in `unresolved`. The API refuses to choose between the candidates.',
+      headers: RL.concat([DV]),
+      body: err('AMBIGUOUS_TICKER', 'Ticker 9998 maps to more than one company in the data, so it cannot be resolved.', { ticker: 9998, candidates: ['أ', 'ب'] }) },
+    { label: 'Bad path parameter', req: 'GET /v1/companies/abc', visit: V1.concat(['decode', 'headers']), exit: 'decode', kind: 'warn', status: '400 Bad Request',
+      note: 'HttpApiSchemaError → RequestValidation', story: 'The route matches, but "abc" does not decode as a positive integer. The handler never runs.',
+      headers: RL.concat([DV]),
+      body: err('VALIDATION_ERROR', 'The request is invalid. See `details` for the offending fields.', [{ path: 'ticker', message: '…' }]) },
+    { label: 'Rule across fields', req: 'POST /v1/purification/calculate\n{"entries":[{"ticker":2330,"shares":1,"purchaseDate":"2021-05-01"}]}', visit: CALC.concat(['decode', 'headers']), exit: 'decode', kind: 'warn', status: '400 Bad Request',
+      note: 'Cross-field filter: saleDate is required', story: 'Each field is valid, but in date mode an entry needs either saleDate or stillOwned. Only the first broken rule is reported.',
+      headers: RL.concat([DV]),
+      body: err('VALIDATION_ERROR', 'The request is invalid. See `details` for the offending fields.', [{ path: 'entries.0.saleDate', message: '`saleDate` is required unless `stillOwned` is true.' }]) },
+    { label: 'Malformed JSON', req: 'POST /v1/purification/calculate\nContent-Type: application/json\n\nnot json', visit: CALC.concat(['decode', 'headers']), exit: 'decode', kind: 'warn', status: '400 Bad Request',
+      note: 'The single issue "Expected a valid JSON body" → ValidationError.unparsable()', story: 'The Content-Type is right, so JsonBody lets it through. The body fails to parse, and RequestValidation swaps in the friendlier "could not be parsed" message.',
+      headers: RL.concat([DV]),
+      body: err('VALIDATION_ERROR', 'The request body could not be parsed. Send valid JSON with Content-Type: application/json.') },
+    { label: 'text/plain body', req: 'POST /v1/purification/calculate\nContent-Type: text/plain', visit: CALC.concat(['headers']), exit: 'body', kind: 'warn', status: '400 Bad Request',
+      note: 'JsonBody refuses it.', story: 'The calculation only takes JSON. Left to Effect, this would be a plain-text 415, and a missing Content-Type would be read as JSON.',
+      headers: RL.concat([DV]),
+      body: err('VALIDATION_ERROR', 'The request body could not be parsed. Send valid JSON with Content-Type: application/json.') },
+    { label: '101 KB body', req: 'POST /v1/purification/calculate  (Content-Length: 103,4xx)', visit: CALC.concat(['headers']), exit: 'body', kind: 'warn', status: '413 Payload Too Large',
+      note: 'Refused without reading the body.', story: 'The declared Content-Length is over 100 KB. Without that header, the body would be read with a cap instead.',
+      headers: RL.concat([DV]),
+      body: err('PAYLOAD_TOO_LARGE', 'Request body exceeds 100 KB.') },
+    { label: '61st request in a minute', req: 'GET /v1/meta  (61st from this IP this minute)', visit: ['recv', 'options', 'route', 'version', 'ratelimit', 'headers'], exit: 'ratelimit', kind: 'bad', status: '429 Too Many Requests',
+      note: 'yield* RateLimited.of(limit, secondsUntilReset)', story: 'The window\'s count went past 60. The request is answered right away with Retry-After, and the handler never runs.',
+      headers: ['RateLimit-Limit: 60', 'RateLimit-Remaining: 0', 'RateLimit-Reset: 42', 'Retry-After: 42', DV],
+      body: err('RATE_LIMITED', 'Rate limit of 60 requests per minute exceeded. Retry in 42s.') },
+    { label: 'Unknown /v1 route', req: 'GET /v1/nothing', visit: ['recv', 'options', 'route', 'headers'], exit: 'route', kind: 'warn', status: '404 Not Found',
+      note: 'RouteNotFound → notFound', story: 'No endpoint matched, so none of the API middleware ran: no quota used and no data headers. Only the security and CORS headers are added.',
+      headers: ['(security and CORS only)'],
+      body: err('NOT_FOUND', 'No route for GET /v1/nothing.') },
+    { label: 'Unknown route', req: 'GET /v2/nothing?x=1', visit: ['recv', 'options', 'route', 'headers'], exit: 'route', kind: 'warn', status: '404 Not Found',
+      note: 'RouteNotFound → notFound', story: 'The router answers it in the error envelope, with the query string left out of the message.',
+      headers: ['(security and CORS only)'],
+      body: err('NOT_FOUND', 'No route for GET /v2/nothing.') },
+    { label: 'Health check', req: 'GET /health', visit: ['recv', 'options', 'route', 'handler', 'success', 'headers'], exit: 'success', kind: 'ok', status: '200 OK',
+      note: 'Not rate limited.', story: 'The health group is added to the API after the /v1 middleware, so uptime monitors and Render\'s health check never use up quota.',
+      headers: ['(security and CORS only)'],
+      body: '{\n  "status": "ok"\n}' },
+    { label: 'CORS preflight', req: 'OPTIONS /v1/purification/calculate\nOrigin: https://trynaqua.com', visit: ['recv', 'options'], exit: 'options', kind: 'ok', status: '204 No Content',
+      note: 'Answered before everything else.', story: 'A preflight never reaches the router, so it never reaches the rate limit.',
+      headers: ['Access-Control-Allow-Methods: GET, POST', 'Access-Control-Allow-Headers: Content-Type', 'Access-Control-Max-Age: 86400'],
+      body: '(empty)' },
+    { label: 'Handler throws', req: 'GET /v1/companies/2330  (dataset.lookup throws)', visit: V1.concat(['decode', 'handler', 'defect', 'headers']), exit: 'defect', kind: 'bad', status: '500 Internal Server Error',
+      note: 'logError, then internalError', story: 'A thrown exception is a defect, not a typed error. It is logged on the server, and the client sees only the generic envelope.',
+      headers: RL.concat([DV]),
+      body: err('INTERNAL_ERROR', 'An unexpected error occurred.') }
+  ];
+
+  var bar = document.getElementById('scenarios');
+  var stagesEl = document.getElementById('stages');
+  var stageEls = Array.prototype.slice.call(stagesEl.querySelectorAll('.stage'));
+  var buttons = scenarios.map(function (s, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = s.label;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', function () { trace(i); });
+    bar.appendChild(b);
+    return b;
+  });
+  function trace(i) {
+    var s = scenarios[i];
+    buttons.forEach(function (b, j) { b.setAttribute('aria-pressed', String(i === j)); });
+    stagesEl.classList.add('tracing');
+    stageEls.forEach(function (el) {
+      var id = el.getAttribute('data-stage');
+      el.classList.remove('visited', 'exit', 'ok', 'bad', 'warn');
+      el.querySelector('.exitnote').textContent = '';
+      if (id === s.exit) {
+        el.classList.add('exit', s.kind);
+        el.querySelector('.exitnote').textContent = '→ ' + s.status + ' · ' + s.note;
+      } else if (s.visit.indexOf(id) !== -1) {
+        el.classList.add('visited');
+      }
+    });
+    document.getElementById('rReq').textContent = s.req;
+    var st = document.getElementById('rStatus');
+    st.textContent = s.status;
+    st.style.color = s.kind === 'ok' ? 'var(--ok)' : s.kind === 'bad' ? 'var(--err)' : 'var(--warn)';
+    document.getElementById('rStory').textContent = s.story;
+    var h = document.getElementById('rHdrs');
+    h.innerHTML = '';
+    s.headers.forEach(function (x) { var sp = document.createElement('span'); sp.textContent = x; h.appendChild(sp); });
+    document.getElementById('rBody').textContent = s.body;
+  }
+  trace(1);
+
+  // Year splitter: same logic as src/domain/dates.ts and purification.ts
+  var DAY = 86400000;
+  var dayNumber = function (y, m, d) { return Date.UTC(y, m - 1, d) / DAY; };
+  var yearOfDay = function (d) { return new Date(d * DAY).getUTCFullYear(); };
+  var parseIso = function (v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    var dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d ? dayNumber(y, mo, d) : null;
+  };
+  var splitDates = function (s, e) {
+    var out = [], cur = s;
+    while (cur < e) { var y = yearOfDay(cur); var se = Math.min(e, dayNumber(y + 1, 1, 1)); out.push({ year: y, days: se - cur }); cur = se; }
+    return out;
+  };
+  var splitDays = function (y, total) {
+    var out = [], rem = total;
+    while (rem > 0) { var d = Math.min(rem, 365); out.push({ year: y, days: d }); rem -= d; y++; }
+    return out;
+  };
+  var round10 = function (v) { return Number(v.toFixed(10)); };
+  var COV_START = parseIso('2015-01-01'), COV_END = parseIso('2024-12-31');
+  var $ = function (id) { return document.getElementById(id); };
+
+  function renderSplit() {
+    var mode = $('dMode').value;
+    document.querySelectorAll('.m-dates').forEach(function (el) { el.hidden = mode !== 'dates'; });
+    document.querySelectorAll('.m-days').forEach(function (el) { el.hidden = mode !== 'days'; });
+    $('dEnd').disabled = $('dOwned').checked;
+    var shares = Number($('dShares').value), rate = Number($('dRate').value);
+    var out = $('dOut'), segs, problem = null;
+    if (!(shares > 0)) problem = '`shares` must be greater than 0.';
+    if (mode === 'dates' && !problem) {
+      var s = parseIso($('dStart').value);
+      var e = $('dOwned').checked ? COV_END : parseIso($('dEnd').value);
+      if (s === null) problem = '`purchaseDate` must be a real date in YYYY-MM-DD form.';
+      else if (s < COV_START || s > COV_END) problem = '`purchaseDate` must be between 2015-01-01 and 2024-12-31.';
+      else if (e === null) problem = '`saleDate` must be a real date in YYYY-MM-DD form.';
+      else if (e > COV_END) problem = '`saleDate` cannot be after 2024-12-31; use `stillOwned` for a holding still open.';
+      else if (e <= s) problem = 'The sale date must be after the purchase date.';
+      else segs = splitDates(s, e);
+    } else if (!problem) {
+      var y = Number($('dYear').value), days = Number($('dDays').value);
+      if (!Number.isInteger(y) || y < 2015 || y > 2024) problem = '`year` must be between 2015 and 2024.';
+      else if (!Number.isInteger(days) || days < 1) problem = '`daysOwned` must be a positive integer.';
+      else if (days > (2024 - y + 1) * 365) problem = 'Starting in ' + y + ', `daysOwned` cannot exceed ' + ((2024 - y + 1) * 365) + ' (data ends in 2024).';
+      else segs = splitDays(y, days);
+    }
+    if (problem) { out.innerHTML = ''; var p = document.createElement('div'); p.className = 'demo-err'; p.textContent = '400 VALIDATION_ERROR: ' + problem; out.appendChild(p); return; }
+    var amounts = segs.map(function (g) { return round10((shares * rate * g.days) / 365); });
+    var total = round10(amounts.reduce(function (t, a) { return t + a; }, 0));
+    var maxDays = 366;
+    var html = '<div class="table-wrap"><table><tr><th>Year</th><th>Days owned</th><th style="width:30%"></th><th>Amount (SAR)</th></tr>';
+    segs.forEach(function (g, i) {
+      html += '<tr><td>' + g.year + '</td><td>' + g.days + '</td><td><div class="bar" style="width:' + (g.days / maxDays * 100).toFixed(1) + '%"></div></td><td><code>' + amounts[i] + '</code></td></tr>';
+    });
+    html += '<tr><td colspan="3"><strong>purificationAmount</strong> (rounded sum)</td><td><code>' + total + '</code></td></tr></table></div>';
+    out.innerHTML = html;
+  }
+  ['dMode', 'dShares', 'dRate', 'dStart', 'dEnd', 'dOwned', 'dYear', 'dDays'].forEach(function (id) {
+    $(id).addEventListener('input', renderSplit);
+    $(id).addEventListener('change', renderSplit);
+  });
+  renderSplit();
+})();
+</script>
+</body>
+</html>

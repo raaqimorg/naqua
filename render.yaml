@@ -1,0 +1,23 @@
+# Render Blueprint for api.trynaqua.com.
+services:
+  - type: web
+    name: naqwa-api
+    runtime: node
+    plan: free
+    # Frankfurt is the closest Render region to Saudi Arabia.
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    # There is no build step: Node 24 runs the TypeScript sources directly.
+    # `corepack pnpm` runs the pnpm pinned in package.json without needing
+    # `corepack enable`, which wants write access to the Node install.
+    buildCommand: corepack pnpm install --frozen-lockfile --prod
+    startCommand: node src/server.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: "0"
+    domains:
+      - api.trynaqua.com
