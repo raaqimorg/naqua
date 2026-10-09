@@ -4,6 +4,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: ["📦 dependencies"]
     ignore:
       # The current typescript-eslint release rejects TypeScript 7.
       - dependency-name: typescript
@@ -19,3 +20,4 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: ["📦 dependencies", "🧰 tooling"]

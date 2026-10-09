@@ -1,0 +1,56 @@
+name: Data correction
+description: A rate, a status, or a company name differs from the published source
+labels: ["📜 data"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The rates come from the lists that the Al-Maqased Center for Economic Consultations publishes. A correction needs that source, so we can check it. To ask for a ruling on your own holdings, consult a qualified scholar; this form is only for the data.
+  - type: input
+    id: ticker
+    attributes:
+      label: Ticker
+      placeholder: "2330"
+    validations:
+      required: true
+  - type: input
+    id: year
+    attributes:
+      label: Year
+      placeholder: "2023"
+    validations:
+      required: true
+  - type: dropdown
+    id: field
+    attributes:
+      label: What is wrong
+      options:
+        - The rate
+        - The status (pure, mixed, non-pure, public-sector)
+        - The company name or its aliases
+        - The ticker belongs to another company
+        - A published year is missing
+    validations:
+      required: true
+  - type: textarea
+    id: values
+    attributes:
+      label: Current and correct value
+      description: What the API returns today, and what the source says.
+      placeholder: |
+        API: rate 0.0199, status mixed
+        Source: rate 0.0219, status mixed
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source
+      description: A link to the published list, and the page or row where the value appears.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else, such as a renamed company or a ticker that the source gives to two companies.

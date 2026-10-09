@@ -1,0 +1,81 @@
+name: Bug report
+description: The API, a calculation, the docs, or the local setup behaves incorrectly
+labels: ["🐛 bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, do not open an issue. See [SECURITY.md](https://github.com/raaqimorg/naqua/blob/main/.github/SECURITY.md). For a wrong rate or status, use the Data correction form.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - API (api.trynaqua.com)
+        - A purification calculation
+        - Interactive docs or the OpenAPI document
+        - Local development setup
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Request and response
+      description: The request that shows it, as a curl command if you can, and the status and body that came back.
+      render: shell
+      placeholder: |
+        curl -s https://api.trynaqua.com/v1/companies/2330/rates/2023
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What breaks, and what is the worst case if it stays unfixed? For a calculation, how far off is the amount?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: For a local setup issue, your OS, Node version, and pnpm version. Skip it for the live API.
+  - type: markdown
+    attributes:
+      value: |
+        ### If you plan to send the fix
+
+        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua/blob/main/.github/CONTRIBUTING.md).
+  - type: textarea
+    id: root-cause
+    attributes:
+      label: Root cause
+      description: Which code causes the bug? Link the file and lines.
+  - type: textarea
+    id: proposed-fix
+    attributes:
+      label: Proposed fix
+      description: A snippet or a clear description.
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Reasoning
+      description: Why the fix addresses the underlying problem rather than the symptom.
+  - type: textarea
+    id: trade-offs
+    attributes:
+      label: Trade-offs
+      description: Could it introduce new bugs, mask others, or only work around the issue? Does it change the HTTP contract, or a number that the website computes? What else does the changed code touch?
+  - type: input
+    id: labels
+    attributes:
+      label: Labels
+      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua/labels), each component and topic this touches. A maintainer applies them.
+      placeholder: "⚙️ api, 🧮 calculation"

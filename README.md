@@ -206,7 +206,7 @@ flowchart LR
 
 The stack is Node 24, which strips the types and runs the TypeScript directly, and [Effect](https://effect.website) 4 for the HTTP API, validation, and the OpenAPI document. The docs page is [Scalar](https://scalar.com).
 
-Production runs on Render, from [`render.yaml`](render.yaml): `corepack pnpm install --frozen-lockfile --prod`, then `node src/server.ts`. There is no build artifact, so what runs in production is exactly what the tests ran.
+[`docs/topology.md`](docs/topology.md) maps the whole system: production, the request path, the data, the code, and CI. Production runs on Render, from [`render.yaml`](render.yaml): `corepack pnpm install --frozen-lockfile --prod`, then `node src/server.ts`. There is no build artifact, so what runs in production is exactly what the tests ran.
 
 <details>
 <summary><b>Deploying to Render</b></summary>
@@ -239,7 +239,7 @@ Report bugs and ideas in [GitHub issues](https://github.com/raaqimorg/naqua/issu
 3. Run `pnpm check`.
 4. Open a pull request into `main`, linked to the issue.
 
-For a data correction, give the source, and review any change to the parity fixtures. [`AGENTS.md`](AGENTS.md) lists what is easy to get wrong in this repo. It is written for AI agents, and it is useful to anyone.
+For a data correction, use the Data correction form, give the published source, and review any change to the parity fixtures. [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) gives the full steps. [`AGENTS.md`](AGENTS.md) lists what is easy to get wrong in this repo. It is written for AI agents, and it is useful to anyone.
 
 <details>
 <summary><b>What <code>pnpm check</code> runs</b></summary>
@@ -272,13 +272,11 @@ The `"private": true` field in `package.json` prevents accidental publishing to 
 
 Naqua is part of [Raaqim](https://raaqim.org), an open-source organization behind several Arabic-language projects.
 
-To report a security problem, use **Report a vulnerability** in the repository's Security tab, and keep the report private until the issue is fixed. Please do not open a public issue for a vulnerability.
-
-<sub>Private vulnerability reporting has to be turned on when the repository is made public.</sub>
+To report a security problem, use **Report a vulnerability** in the repository's Security tab, and keep the report private until the issue is fixed. Please do not open a public issue for a vulnerability. [`SECURITY.md`](.github/SECURITY.md) has the policy and its scope, and the [code of conduct](.github/CODE_OF_CONDUCT.md) covers how we treat each other here.
 
 ## License
 
-The code is released under the [MIT license](LICENSE). That license does not cover the purification rates in `data/` and in the test fixtures. They come from the Al-Maqased Center for Economic Consultations, which reserves all rights to its published lists, so ask the center before you reuse them. The lettering at the top of this README is drawn from the [Amiri](https://github.com/aliftype/amiri) typeface, under the SIL Open Font License 1.1.
+The code is released under the [MIT license](LICENSE). That license does not cover the purification rates in `data/` and in the test fixtures. They come from the Al-Maqased Center for Economic Consultations, which reserves all rights to its published lists, so ask the center before you reuse them. The lettering at the top of this README is drawn from the [Amiri](https://github.com/aliftype/amiri) typeface, under the SIL Open Font License 1.1. The code of conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org) 2.1.
 
 <br>
 

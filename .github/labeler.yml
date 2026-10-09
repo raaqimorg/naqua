@@ -1,0 +1,49 @@
+"⚙️ api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/http/**
+          - src/app.ts
+          - src/server.ts
+          - src/config.ts
+
+"🧮 calculation":
+  - changed-files:
+      - any-glob-to-any-file: src/domain/**
+
+"📜 data":
+  - changed-files:
+      - any-glob-to-any-file:
+          - data/**
+          - src/data/**
+          - scripts/format-dataset.ts
+
+"⚖️ parity":
+  - changed-files:
+      - any-glob-to-any-file:
+          - test/parity.test.ts
+          - test/fixtures/legacy-*.json
+
+"📐 contract":
+  - changed-files:
+      - any-glob-to-any-file:
+          - test/contract.test.ts
+          - test/fixtures/contract.json
+
+"🏗️ infra":
+  - changed-files:
+      - any-glob-to-any-file: render.yaml
+
+"🧰 tooling":
+  - changed-files:
+      - any-glob-to-any-file:
+          - scripts/**
+          - .github/workflows/**
+          - .github/dependabot.yml
+          - .github/labeler.yml
+          - eslint.config.js
+          - tsconfig.json
+          - .nvmrc
+
+"📝 documentation":
+  - changed-files:
+      - any-glob-to-all-files: "**/*.md"

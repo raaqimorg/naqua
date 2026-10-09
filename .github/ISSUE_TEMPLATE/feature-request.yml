@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest a capability or an improvement
+labels: ["✨ enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: Describe the need, not the implementation. What can't you do with the API today?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who needs this, and what happens without it?
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ### If you plan to build it
+
+        Fill in the fields below. A pull request needs them, and for a larger change we agree on the approach here before any code is written. See [CONTRIBUTING.md](https://github.com/raaqimorg/naqua/blob/main/.github/CONTRIBUTING.md).
+  - type: textarea
+    id: limitation
+    attributes:
+      label: Limitation
+      description: Which code stands in the way today? Link the file and lines.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: A snippet or a clear description.
+  - type: textarea
+    id: example
+    attributes:
+      label: Example request and response
+      description: What a client would send, and what it would get back.
+      render: shell
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Reasoning
+      description: Why this approach addresses the need.
+  - type: textarea
+    id: trade-offs
+    attributes:
+      label: Trade-offs
+      description: Could it introduce new bugs, mask others, or only work around the issue? Does it change the HTTP contract, or the parity with the website? What else does the changed code touch?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: input
+    id: labels
+    attributes:
+      label: Labels
+      description: Every other label that fits, from the [label list](https://github.com/raaqimorg/naqua/labels), each component and topic this touches. A maintainer applies them.
+      placeholder: "⚙️ api, 📐 contract"
