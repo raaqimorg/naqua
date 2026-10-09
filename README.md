@@ -1,243 +1,246 @@
-# نقوة | Naqua — Purification API
+# Naqua
 
-Public API for Saudi (Tadawul) stock purification: the published purification
-rate for each company and year, and a calculator for how much to purify for a
-set of holdings. It is the same calculation as the calculator on
-[trynaqua.com](https://trynaqua.com), and a test sweep (below) holds the two to
-the same numbers.
+نقوة، تطهير الأسهم السعودية · Saudi stock purification
 
-The rates are the ones published by the
-[Al-Maqased Center for Economic Consultations](https://almaqased.net)
-(مركز المقاصد للاستشارات الاقتصادية), under the supervision of Dr. Mohammed bin
-Saud Al-Osaimi (د. محمد بن سعود العصيمي). They are not covered by this
-repository's license; see [License](#license).
+[Calculator](https://trynaqua.com) · [API docs](https://api.trynaqua.com/docs) · [OpenAPI](https://api.trynaqua.com/openapi.json) · [Code: MIT](LICENSE) · [Data rights](#license)
 
-> The rates and amounts are for information only. They are not a fatwa or
-> financial advice; for a ruling on your own holdings, consult a qualified
-> scholar.
+Naqua provides purification rates for Saudi (Tadawul) stocks and calculates
+how much to purify for a set of holdings. At [trynaqua.com](https://trynaqua.com),
+you can use the calculator in your browser. The API exposes the same
+calculation as JSON. The source code is available here, and contributions are
+welcome.
 
-- **Configured deployment URL:** `https://api.trynaqua.com` — interactive docs at `/docs`, OpenAPI 3.1 at `/openapi.json`
-- **Stack:** Node 24 (runs the TypeScript directly, no build step), [Effect](https://effect.website) 4 for the HTTP API, validation and OpenAPI
+| Companies | Years | Currency | API version |
+|---|---|---|---|
+| 219 | 2015–2024 | SAR | v1 |
 
-## Run locally
+From the committed snapshot in `data/companies.json`. A company's inclusion
+does not mean it has a published rate for every year. Holdings outside the
+data's coverage cannot be calculated; `stillOwned` stops at the data's end
+date, rather than today's date.
 
-Requires Node 24+ and pnpm 12.4.2 (pinned in `package.json`). With Node 24's
-Corepack installed:
+> Rates and calculations are for information only. They are not a fatwa or
+> financial advice. Consult a qualified scholar for a ruling on your holdings.
+
+## Try it
+
+**Use the calculator.** Open [trynaqua.com](https://trynaqua.com).
+
+**Ask the API.** No key or sign-up is required:
 
 ```bash
-git clone https://github.com/Mohammedbbk/naqua-api.git
-cd naqua-api
+curl https://api.trynaqua.com/v1/companies/2330/rates/2023
+```
+
+Calculate purification for 100 shares held for 200 days in 2023:
+
+```bash
+curl https://api.trynaqua.com/v1/purification/calculate \
+  -H 'Content-Type: application/json' \
+  -d '{"entries":[{"ticker":2330,"shares":100,"year":2023,"daysOwned":200}]}'
+```
+
+This returns a total of `1.1123287671` SAR, with a breakdown by holding and year.
+
+**Run it locally.** You need Node 24+ and pnpm 12.4.2. With Node 24's Corepack
+installed:
+
+```bash
+git clone https://github.com/raaqimorg/naqua.git
+cd naqua
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open [the local API docs](http://localhost:3000/docs), or try:
+The API is at [localhost:3000](http://localhost:3000), which redirects to the
+[interactive docs](http://localhost:3000/docs). No database or private website
+checkout is needed. Set `PUBLIC_URL=http://localhost:3000` before starting the
+server if you want the docs to send requests to your local API.
 
-```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/v1/companies/2330/rates/2023
+## API
+
+[api.trynaqua.com/v1](https://api.trynaqua.com/v1/meta) serves JSON for companies,
+yearly rates, and purification calculations. Explore the
+[interactive docs](https://api.trynaqua.com/docs) or the
+[OpenAPI document](https://api.trynaqua.com/openapi.json).
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/v1/companies` | Companies and years with published rates |
+| GET | `/v1/companies/{ticker}` | A company and its yearly records |
+| GET | `/v1/companies/{ticker}/rates/{year}` | One year's rate |
+| POST | `/v1/purification/calculate` | Amounts for a set of holdings |
+| GET | `/v1/meta` | Coverage, data version, formula, and limits |
+| GET | `/health` | Liveness, outside the rate limit |
+
+| Limit | Default |
+|---|---|
+| Requests | 60 per minute per IP for `/v1` endpoints |
+| Holdings | 100 per calculation |
+| Request body | 100 KiB (102,400 bytes) |
+
+Responses from `/v1` endpoints include `X-Data-Version` and rate-limit headers.
+A refused request gets `429` with `Retry-After`. The limiter is held in memory,
+is per process, and resets on restart. Its current forwarded-IP handling is a
+courtesy limit, not reliable protection against deliberate evasion.
+
+Errors have a stable `error.code`, a message in Arabic and English, and
+optional `details`. A calculation is all-or-nothing: if one holding fails,
+`details.entryIndex` identifies it. Validation errors return `400`, unknown
+companies `404`, disputed tickers `409`, and missing rates `404` on a lookup or
+`422` in a calculation. Oversized bodies return `413`, though an oversized
+chunked upload can close the Node connection before a response is sent.
+
+## Data
+
+The rates are published by the
+[Al-Maqased Center for Economic Consultations](https://almaqased.net)
+(مركز المقاصد للاستشارات الاقتصادية), under the supervision of Dr. Mohammed bin
+Saud Al-Osaimi (د. محمد بن سعود العصيمي). The snapshot originated from the data
+used by trynaqua.com. The rates are **not covered by the code's MIT license**.
+
+`data/companies.json` is the source the API serves. It is validated and loaded
+at startup, with no live network dependency. Each company has a ticker, an
+Arabic name, aliases, and yearly records containing a rate and a status.
+A rate is an amount in SAR per share for a full year, not a percentage.
+
+Statuses are `pure`, `mixed`, `non-pure`, or `public-sector`. A `null` rate
+means none was published; zero is a valid rate. Classification belongs to the
+year. `overallStatus` is the known status if it stayed the same, or `varies` if
+it changed. Disputed tickers are preserved in `unresolved` and cannot be used
+until a maintainer resolves them.
+
+To update the data, edit the published records, extend `coverage.end` when
+needed, and run `pnpm data:format` followed by `pnpm test`. Include the source
+for corrections. The formatter keeps each year on one line so changes are easy
+to review.
+
+## How it works
+
+A request is validated, matched to a company in the loaded dataset, and passed
+to the calculation functions. Each year's amount is prorated:
+
+```text
+purificationAmount = shares × ratePerShare × daysOwned / 365
 ```
 
-The committed dataset covers **2015–2024** for **219 companies**. Holdings
-outside that coverage cannot be calculated. `stillOwned` uses the dataset's
-end date, rather than today's date.
+| Part | Role | Built with |
+|---|---|---|
+| `src/domain/` | Date ranges and purification arithmetic | Plain TypeScript |
+| `src/data/` | Dataset validation, ticker lookups, and formatting | Effect Schema, Node.js |
+| `src/http/` | API contract, handlers, middleware, and errors | Effect HTTP API |
+| `src/app.ts`, `src/server.ts` | Application assembly and server startup | Effect Layers, Node.js |
+| `data/` | Committed rate snapshot | JSON |
+| `test/` | Dates, validation, API behavior, and website parity | Node.js test runner |
+| `scripts/` | Dataset formatter | Node.js |
+
+Node 24 runs the TypeScript directly; there is no build step. API schemas also
+generate the OpenAPI document. Production runs on Render.
+
+<details>
+<summary>Calculation details</summary>
+
+Date mode accepts `purchaseDate` with either `saleDate` or `stillOwned: true`.
+It splits the holding at calendar-year boundaries and excludes the sale day.
+A full year therefore runs from 1 January to the following 1 January.
+`stillOwned` uses `coverage.end` as the excluded end date.
+
+Days mode accepts `year` and `daysOwned`. It splits the count into consecutive
+365-day chunks; it does not observe leap days. Date mode counts leap days, but
+the formula always divides by 365, so a full leap year contributes 366/365 of
+the published annual rate.
+
+Amounts are rounded to 10 decimal places in the same arithmetic order as the
+website. The grand total sums every yearly amount, rather than the rounded
+per-holding subtotals. A missing rate fails the entire request.
+
+</details>
+
+<details>
+<summary>Configuration and deployment</summary>
 
 | Environment variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `3000` | HTTP listening port |
-| `PUBLIC_URL` | `https://api.trynaqua.com` | Server URL shown in OpenAPI and interactive docs |
+| `PORT` | `3000` | Listening port |
+| `PUBLIC_URL` | `https://api.trynaqua.com` | Server URL in OpenAPI and the docs |
 | `REQUESTS_PER_MINUTE` | `60` | Positive integer limit per IP |
 
-For interactive docs that send requests to your local server, set
-`PUBLIC_URL=http://localhost:3000` before starting it. Environment variables
-must be set in your shell or hosting dashboard; `.env` files are not loaded
+Set variables in your shell or hosting dashboard. `.env` files are not loaded
 automatically.
 
-The root URL `/` redirects to the interactive documentation at `/docs`.
+For Render, create a Blueprint from `render.yaml`, or configure a Node web
+service with:
 
-## Endpoints
+```text
+Build: corepack pnpm install --frozen-lockfile --prod
+Start: node src/server.ts
+Health check: /health
+Node version: 24
+```
 
-| Method | Path | |
-|---|---|---|
-| `GET` | `/v1/companies` | Every company, with the years that have a rate |
-| `GET` | `/v1/companies/{ticker}` | One company and everything known about each year |
-| `GET` | `/v1/companies/{ticker}/rates/{year}` | One year's rate |
-| `POST` | `/v1/purification/calculate` | Purification amount for up to 100 holdings |
-| `GET` | `/v1/meta` | Coverage, data version, unit, formula, limits |
-| `GET` | `/health` | Liveness (not rate limited) |
+For a fork, change `domains` in the Blueprint and set `PUBLIC_URL` to your own
+API address. Point the custom domain's CNAME to the hostname Render assigns,
+and verify the domain in Render. Free services sleep after approximately
+15 minutes without traffic and can take time to wake up.
+
+Keep a single instance while using the in-memory limiter. Verify how your
+proxy sets client-IP headers before relying on per-IP limits. Roll back through
+the service's Events page by selecting an earlier deploy.
+
+</details>
+
+## Contributing
+
+Report bugs and ideas in [GitHub issues](https://github.com/raaqimorg/naqua/issues).
+For code or data changes:
+
+1. Branch from `main`, or fork the repository.
+2. Make your change and run `pnpm check`.
+3. Open a pull request into `main` explaining the change and how you checked it.
+
+`AGENTS.md` describes the repository's implementation rules. The
+`"private": true` setting in `package.json` prevents accidental npm publishing;
+it does not determine the code's license or the repository's visibility.
+
+<details>
+<summary>What pnpm check verifies</summary>
+
+`pnpm check` runs type checking, ESLint, and the Node.js tests. The compiler
+checks that TypeScript can run through Node's type stripping: relative imports
+end in `.ts`, type-only imports use `import type`, and non-erasable features
+such as enums and constructor parameter properties are excluded.
+
+The parity tests compare every recorded company-year rate and 1,752 generated
+holdings against committed outputs from the website calculator. Tests require
+no access to the website repository. Intentional rate differences are pinned
+in `test/fixtures/legacy-differences.json`.
+
+The contract tests pin response statuses, headers, and bodies in
+`test/fixtures/contract.json`. For intended changes only, regenerate the
+relevant fixture and review the diff:
 
 ```bash
-curl -s https://api.trynaqua.com/v1/purification/calculate \
-  -H 'Content-Type: application/json' \
-  -d '{"entries":[
-        {"ticker":2330,"shares":100,"purchaseDate":"2021-03-01","saleDate":"2023-06-30"},
-        {"ticker":2222,"shares":10,"purchaseDate":"2023-01-01","stillOwned":true},
-        {"ticker":2001,"shares":50,"year":2022,"daysOwned":200}
-      ]}'
+UPDATE_DIFFERENCES=1 pnpm test
+UPDATE_CONTRACT=1 pnpm test
 ```
 
-**The formula.** A holding is split into calendar years, and each year is
-prorated: `shares × ratePerShare × daysOwned / 365`. In date mode the sale day
-is not counted, so a full year runs from 1 January to the next 1 January (365
-days, or 366 in a leap year). A `stillOwned` holding runs until the last day of
-the data (`coverage.end`), which is likewise not counted. The divisor is always
-365, so a leap year held in full comes to 366/365 of that year's rate. Both
-match the website's calculator. Days mode has no calendar: the count is cut
-into consecutive 365-day years from `year`. Amounts are in SAR to 10 decimal
-places.
+Do not regenerate fixtures just to make a failing test pass.
 
-**Errors** always look like `{ "error": { "code", "message": { "ar", "en" }, "details"? } }`.
-Codes are stable: `VALIDATION_ERROR` (400), `UNKNOWN_TICKER` (404),
-`RATE_NOT_AVAILABLE` (404 on a lookup, 422 in a calculation), `AMBIGUOUS_TICKER`
-(409), `PAYLOAD_TOO_LARGE` (413), `RATE_LIMITED` (429), `NOT_FOUND`,
-`INTERNAL_ERROR`. A calculation is all-or-nothing, and `details.entryIndex`
-names the entry that failed.
+</details>
 
-**Limits.** 60 requests per minute per IP to the `/v1` endpoints (set
-`REQUESTS_PER_MINUTE` to change it), 100 entries and 100 KB per request. Every
-response from a `/v1` endpoint carries `X-Data-Version`, which changes whenever
-the data does.
+## Contact
 
-Oversized requests with a declared content length receive 413. On the Node
-server, oversized chunked uploads can close the connection before an error
-response is sent.
-
-## The data
-
-`data/companies.json` is the dataset the API serves. It is loaded and validated
-when the server starts, so a malformed file stops the deploy rather than
-breaking requests.
-
-```jsonc
-{
-  "schemaVersion": 1,
-  "unit": "SAR to purify per share held for a full year",
-  "coverage": { "start": "2015-01-01", "end": "2024-12-31" },
-  "companies": [
-    {
-      "ticker": 2330,
-      "name": "المتقدمة",
-      "aliases": [],                    // former or alternative names
-      "years": {
-        "2015": { "rate": 0.0199, "status": "mixed" },
-        "2016": { "rate": 0.0139, "status": "mixed" }
-      }
-    }
-  ],
-  "unresolved": [ /* tickers the source assigns to two companies — see below */ ]
-}
-```
-
-- Every year has the same shape: `rate` (a number, or `null` if none was
-  published) and `status` (`pure`, `mixed`, `non-pure`, `public-sector`, or
-  `null` if unknown). A year with neither is left out.
-- There is no company-wide category. Classification is per year, and the API
-  derives an `overallStatus` (the status if it never changed, else `varies`).
-- Tickers are unique. A ticker the source gives to two different companies sits
-  in `unresolved` with every candidate kept, and the API answers
-  `409 AMBIGUOUS_TICKER` for it until someone decides which one is right.
-- The file has one canonical layout: sorted by ticker, one year per line. A rate
-  change then shows up as exactly a one-line diff.
-
-### Editing it
-
-1. Edit `data/companies.json`. Add yearly entries only where a published rate
-   or status is available. To extend the data past 2024, also move `coverage.end`.
-2. `pnpm data:format` validates the file and restores the canonical layout.
-3. `pnpm test`. If a change alters a number the website still computes
-   differently, the parity test fails. That is intended; see below.
-
-To resolve an `unresolved` ticker, move the correct candidate into `companies`
-(adding its `ticker`), and give the other its real ticker or drop it.
-
-### Where it came from
-
-The dataset originated from the purification data used by trynaqua.com.
-This repository includes a validated snapshot, so running the API and tests
-does not require the private website repository or a live network connection.
-Update `data/companies.json` using the editing steps above.
-
-## Parity with the website
-
-`test/parity.test.ts` checks this API against outputs recorded from the
-website's own calculator code (`test/fixtures/legacy-site.json`). It compares
-every company × year rate, and about 1,700 generated holdings in both modes,
-year by year, down to the last decimal. The only differences it allows are the
-data fixes pinned in `test/fixtures/legacy-differences.json`. An unexplained new
-difference fails the test, and so does a listed one that disappears.
-
-The website outputs are committed reference fixtures; tests do not need the
-website checkout. After an intended change, regenerate the allowed differences
-and **review the diff**: `UPDATE_DIFFERENCES=1 pnpm test`. Never do it just to
-turn a red test green.
-
-## The HTTP contract
-
-`test/contract.test.ts` pins what a client sees: for about 30 requests,
-covering every endpoint and every error code, it records the status, every
-header and the body in `test/fixtures/contract.json`. After an intended change,
-re-record it and review the diff: `UPDATE_CONTRACT=1 pnpm test`.
-
-## Development
-
-```bash
-pnpm install --frozen-lockfile
-pnpm dev          # http://localhost:3000, restarts on change
-pnpm test         # node --test
-pnpm typecheck
-pnpm lint
-pnpm check        # all three, as CI runs them
-```
-
-Node runs the `.ts` files directly by stripping the types, which brings three
-rules (the compiler and linter enforce them):
-
-- Relative imports spell out `.ts`.
-- Type-only imports use `import type`.
-- No enums, namespaces or constructor parameter properties.
-
-Contributions should include `pnpm check` passing. For a data correction,
-provide the source and review any changes to the parity fixtures. The
-`"private": true` field in `package.json` prevents accidental npm publishing;
-it does not control the GitHub repository's visibility or the code license.
-
-## Deployment
-
-Render, from `render.yaml`: `pnpm install --prod`, then `node src/server.ts`. There
-is no build artifact, so what runs in production is exactly what the tests ran.
-
-- **First time:** Render → New → Blueprint → this repo. Use the service's
-  assigned `onrender.com` hostname as the DNS target for your custom domain.
-  Forks should change `domains` in `render.yaml` and set `PUBLIC_URL` to their
-  own API address.
-- **Free plan:** the service sleeps after ~15 idle minutes, and the next request
-  waits for a cold start. Use `/health` for liveness monitoring.
-- **Rate limiting is in memory.** It is correct only while there is one
-  instance, and it resets on every restart. It keys on the first
-  `X-Forwarded-For` address when that is a real IP address, and tracks at most
-  10,000 clients at a time, so made-up addresses cannot run it out of memory.
-  Treat it as a courtesy limit rather than protection against abuse.
-- **After the first deploy,** check whether Render lets a client choose that
-  address. If all 70 of these requests get a 200, it does, and the limiter
-  should key on a header the proxy sets instead:
-
-  ```bash
-  for i in $(seq 70); do
-    curl -s -o /dev/null -w '%{http_code}\n' -H "X-Forwarded-For: 198.51.100.$i" https://api.trynaqua.com/v1/meta
-  done | sort | uniq -c
-  ```
-- **Rollback:** Render → `naqua-api` → Events → an earlier deploy → Rollback.
+Naqua lives under [Raaqim](https://github.com/raaqimorg). Use
+[issues](https://github.com/raaqimorg/naqua/issues) for bugs, ideas, and data
+corrections. For a security issue, use **Report a vulnerability** in the
+repository's Security tab when private reporting is enabled. Please keep
+vulnerability reports out of public issues. Maintainers must enable private
+reporting when making the repository public.
 
 ## License
 
-The code is released under the [MIT License](LICENSE). That license does not
-cover the purification rates in `data/` and the test fixtures. They come from
-the Al-Maqased Center for Economic Consultations, which reserves all rights to
-its published lists, so ask the center before reusing them.
-
-To report a security problem, use **Report a vulnerability** in the
-repository's Security tab when private reporting is enabled. Keep reports
-private until the issue is fixed; please do not open a public issue for
-vulnerabilities. Maintainers must enable private vulnerability reporting when
-making the repository public.
+The code is released under the [MIT license](LICENSE). The purification rates
+in `data/` and the rate data in test fixtures are excluded. They come from the
+Al-Maqased Center for Economic Consultations, which reserves all rights to its
+published lists. Ask the center before reusing or redistributing those rates.
