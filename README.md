@@ -87,8 +87,8 @@ courtesy limit, not reliable protection against deliberate evasion.
 
 Errors have a stable `error.code`, a message in Arabic and English, and
 optional `details`. A calculation is all-or-nothing: if one holding fails,
-`details.entryIndex` identifies it. Validation errors return `400`, unknown
-companies `404`, disputed tickers `409`, and missing rates `404` on a lookup or
+`details.entryIndex` identifies it. Validation errors return `400` and list at
+most 20 invalid fields in `details`. Unknown companies return `404`, disputed tickers `409`, and missing rates `404` on a lookup or
 `422` in a calculation. Oversized bodies return `413`, though an oversized
 chunked upload can close the Node connection before a response is sent.
 

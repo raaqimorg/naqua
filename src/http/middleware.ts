@@ -14,6 +14,7 @@ import { Dataset } from '../data/dataset.ts';
 import { issueList } from '../data/schema.ts';
 import { PayloadTooLarge, RateLimited, ValidationError, errorBody } from './errors.ts';
 import { clientKey, fixedWindow } from './rateLimit.ts';
+import { MAX_ENTRIES_PER_REQUEST } from './schemas.ts';
 
 // The router's middleware wraps every request, matched or not. The API's
 // middleware is declared on endpoints in api.ts, so the errors it raises are
@@ -106,6 +107,28 @@ export class JsonBody extends HttpApiMiddleware.Service<JsonBody>()('naqua/JsonB
       const request = yield* HttpServerRequest.HttpServerRequest;
       if (yield* isTooLarge(request)) return yield* PayloadTooLarge.of();
       if (!isJson(request.headers['content-type'])) return yield* ValidationError.unparsable();
+      return yield* handler;
+    }),
+  );
+}
+
+// The payload schema checks the length of `entries` only after it has checked
+// every entry, and 100 KB holds thousands of them. Count them first; a body
+// that is not JSON is left for the decoder to reject.
+export class EntryLimit extends HttpApiMiddleware.Service<EntryLimit>()('naqua/EntryLimit', {
+  error: ValidationError,
+}) {
+  static readonly layer = Layer.succeed(
+    EntryLimit,
+    Effect.fn(function* (handler) {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const body = yield* Effect.orElseSucceed(request.json, () => null);
+      const entries = body !== null && typeof body === 'object' && !Array.isArray(body) ? body['entries'] : undefined;
+      if (Array.isArray(entries) && entries.length > MAX_ENTRIES_PER_REQUEST) {
+        return yield* ValidationError.of([
+          { path: 'entries', message: `A request can have at most ${MAX_ENTRIES_PER_REQUEST} entries.` },
+        ]);
+      }
       return yield* handler;
     }),
   );

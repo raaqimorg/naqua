@@ -66,9 +66,12 @@ export class RateNotAvailable extends Schema.Error<RateNotAvailable>('RateNotAva
   }
 }
 
+// Enough to fix a request by, and keeps a small body from earning a large error.
+export const MAX_ISSUES = 20;
+
 export class ValidationError extends Schema.Error<ValidationError>('ValidationError')(errorFields('VALIDATION_ERROR'), {
   httpApiStatus: 400,
-  description: '`VALIDATION_ERROR`: `details` lists each invalid field.',
+  description: `\`VALIDATION_ERROR\`: \`details\` lists the invalid fields, at most ${MAX_ISSUES}.`,
 }) {
   static of(issues: { path: string; message: string }[]) {
     return new ValidationError(
@@ -76,7 +79,7 @@ export class ValidationError extends Schema.Error<ValidationError>('ValidationEr
         'VALIDATION_ERROR',
         'الطلب غير صالح. راجع الحقول المذكورة في التفاصيل.',
         'The request is invalid. See `details` for the offending fields.',
-        issues,
+        issues.slice(0, MAX_ISSUES),
       ),
     );
   }
