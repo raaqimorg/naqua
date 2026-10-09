@@ -82,7 +82,7 @@ export const makeApi = ({
   requestsPerMinute: number;
   publicUrl: string;
 }) =>
-  HttpApi.make('naqwa')
+  HttpApi.make('naqua')
     .add(companies, purification(coverage), meta)
     // Only the groups added so far, the ones under /v1. The last one added runs first.
     .middleware(RateLimit)
@@ -91,7 +91,7 @@ export const makeApi = ({
     .annotate(HttpApi.ParseOptions, { errors: 'all' })
     .annotateMerge(
       OpenApi.annotations({
-        title: 'Naqwa Purification API',
+        title: 'Naqua Purification API',
         version: API_VERSION,
         description:
           'Stock purification rates for Saudi (Tadawul) companies, and a calculator for the amount to purify. ' +

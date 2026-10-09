@@ -1,7 +1,7 @@
 import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { HttpApiBuilder, HttpApiScalar } from 'effect/http-api';
-import { API_VERSION, PUBLIC_URL, REQUESTS_PER_MINUTE } from './config.ts';
+import { PUBLIC_URL, REQUESTS_PER_MINUTE } from './config.ts';
 import { Dataset } from './data/dataset.ts';
 import { makeApi } from './http/api.ts';
 import { companiesHandlers } from './http/handlers/companies.ts';
@@ -10,11 +10,7 @@ import { purificationHandlers } from './http/handlers/purification.ts';
 import { DataVersion, JsonBody, RateLimit, RequestValidation, RouterMiddleware } from './http/middleware.ts';
 import { coverageOf } from './http/schemas.ts';
 
-const IndexRoute = HttpRouter.add(
-  'GET',
-  '/',
-  HttpServerResponse.jsonUnsafe({ name: 'Naqwa Purification API', version: API_VERSION, docs: '/docs', openapi: '/openapi.json' }),
-);
+const IndexRoute = HttpRouter.add('GET', '/', HttpServerResponse.redirect('/docs'));
 
 const SCALAR_VERSION = '1.43.5';
 

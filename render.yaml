@@ -1,7 +1,7 @@
 # Render Blueprint for api.trynaqua.com.
 services:
   - type: web
-    name: naqwa-api
+    name: naqua-api
     runtime: node
     plan: free
     # Frankfurt is the closest Render region to Saudi Arabia.
