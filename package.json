@@ -4,10 +4,10 @@
   "private": true,
   "description": "Public API for Saudi (Tadawul) stock purification rates and the purification calculator behind trynaqua.com.",
   "license": "MIT",
-  "homepage": "https://github.com/Mohammedbbk/naqua-api#readme",
+  "homepage": "https://github.com/raaqimorg/naqua#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mohammedbbk/naqua-api.git"
+    "url": "git+https://github.com/raaqimorg/naqua.git"
   },
   "type": "module",
   "engines": {
