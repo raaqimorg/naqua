@@ -206,6 +206,36 @@ describe('POST /v1/purification/calculate', () => {
     assert.equal((await calculate({ entries: tooMany })).status, 400);
   });
 
+  // A body under 100 KB fits tens of thousands of entries; each used to be
+  // validated and every issue listed, a response of megabytes.
+  test('rejects an oversized batch without checking each entry', async () => {
+    const response = await calculate({ entries: Array.from({ length: 30_000 }, () => ({})) });
+    assert.equal(response.status, 400);
+    const { error } = await json(response);
+    assert.equal(error.details.length, 1);
+    assert.deepEqual(error.details[0], { path: 'entries', message: 'A request can have at most 100 entries.' });
+  });
+
+  test('lists at most 20 issues', async () => {
+    const response = await calculate({ entries: Array.from({ length: 100 }, () => ({ ticker: 'x', shares: 'y' })) });
+    assert.equal(response.status, 400);
+    const { error } = await json(response);
+    assert.equal(error.details.length, 20);
+    assert.equal(error.details[0].path, 'entries.0.ticker');
+  });
+
+  test('checks the body size and type before counting entries', async () => {
+    const entries = Array.from({ length: 101 }, () => ({}));
+    const asText = await app.request('/v1/purification/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ entries }),
+    });
+    assert.equal((await json(asText)).error.details, undefined);
+    const tooLarge = await calculate({ entries, padding: 'x'.repeat(101 * 1024) });
+    assert.equal(tooLarge.status, 413);
+  });
+
   test('400s a body that is not JSON', async () => {
     const response = await calculate('not json');
     assert.equal(response.status, 400);

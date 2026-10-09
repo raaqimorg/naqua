@@ -1,7 +1,7 @@
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from 'effect/http-api';
 import { API_VERSION } from '../config.ts';
 import { AmbiguousTicker, RateNotAvailable, UnknownTicker } from './errors.ts';
-import { DataVersion, JsonBody, RateLimit, RequestValidation } from './middleware.ts';
+import { DataVersion, EntryLimit, JsonBody, RateLimit, RequestValidation } from './middleware.ts';
 import {
   CalculationResponseSchema,
   CompanyDetailSchema,
@@ -47,6 +47,7 @@ const purification = (coverage: Coverage) =>
         error: [UnknownTicker, AmbiguousTicker, RateNotAvailable.pipe(HttpApiSchema.status(422))],
       })
         .middleware(RequestValidation)
+        .middleware(EntryLimit)
         .middleware(JsonBody)
         .annotateMerge(
           OpenApi.annotations({
