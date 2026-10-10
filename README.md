@@ -22,7 +22,7 @@
 
 # naqua-api
 
-`naqua-api` is a public API for Saudi (Tadawul) stock purification and one of the products of [Naqua (نقوة)](https://trynaqua.com), a startup. It serves the purification rate published for each company and year, and it calculates how much to purify for a set of holdings. It runs the same calculation as the calculator on [trynaqua.com](https://trynaqua.com), and a test sweep holds the two to the same numbers.
+`naqua-api` is a public API for Sharia screening and Saudi (Tadawul) stock purification, and one of the products of [Naqua (نقوة)](https://trynaqua.com), a startup. It serves the published Sharia classification and purification rate for each company and year, and it calculates how much to purify for a set of holdings. It runs the same calculation as the calculator on [trynaqua.com](https://trynaqua.com), and a test sweep holds the two to the same numbers.
 
 | Companies | Years | Company-years | With a rate | Pure | Mixed | Non-pure | Public sector |
 | --------: | ----: | ------------: | ----------: | ---: | ----: | -------: | ------------: |
@@ -39,6 +39,16 @@ The rates are the ones published by the [Al-Maqased Center for Economic Consulta
 
 > [!NOTE]
 > The rates and amounts are for information only. They are not a fatwa or financial advice. For a ruling on your own holdings, consult a qualified scholar.
+
+## Why this project exists
+
+Building financial software for Saudi investors often means dealing with Sharia compliance. Market data is widely available, but Sharia classifications and purification rates are less straightforward to work with.
+
+For developers, `naqua-api` means less work collecting and organizing data, implementing purification calculations, and maintaining them in a separate application.
+
+You can use it to add Sharia screening to a portfolio tracker, show a company's classification in an investment dashboard, or calculate purification amounts inside a financial application. The API is public, documented, and requires no authentication.
+
+The classifications are recorded by year, because a company's status can change. Purification rates are expressed in SAR per share for a full year, rather than as percentages. The published data has its own licensing terms, explained under [License](#license).
 
 ## Try it
 
@@ -232,6 +242,16 @@ The only differences it allows are the data fixes pinned in [`test/fixtures/lega
 
 After an intended change, regenerate the allowed differences with `UPDATE_DIFFERENCES=1 pnpm test`, and **review the diff**. Never do it only to turn a red test green.
 
+## Why contribute
+
+We want this project to be useful beyond Naqua's own products, and contributions from other developers are part of making that possible.
+
+There is useful work to be done in both the code and the data. You might find an incorrect company record, improve an endpoint, add a test for an unusual holding period, or make the API easier to use.
+
+Working on the project also gives you experience with a financial API that is already running in production. The repository includes its calculation logic, validation, automated tests, and deployment configuration. You can see how these parts work together, improve them, and have your changes reviewed as part of an open-source project.
+
+Even a small correction can matter when other applications use the same code. We would rather fix an issue here once than have each developer work around it separately.
+
 ## Contributing
 
 Report bugs and ideas in [GitHub issues](https://github.com/raaqimorg/naqua-api/issues). To change code, do these steps:
@@ -270,9 +290,25 @@ The `"private": true` field in `package.json` prevents accidental publishing to 
 
 </details>
 
-## Contact
+## About Naqua
 
-`naqua-api` is a product of Naqua (نقوة), a startup that is part of [Raaqim](https://raaqim.org), an open-source organization behind several Arabic-language projects.
+[Naqua (نقوة)](https://trynaqua.com) is a Saudi startup building software for Sharia compliance in financial markets.
+
+We started with a calculator for purifying Saudi stocks. Our work is now extending to the tools and infrastructure that financial applications need to incorporate Sharia compliance into their products.
+
+We think developers should be able to build financial products with Sharia compliance in mind without having to solve the same technical and data problems from the beginning. Making these tools available is one way we hope to support more financial products, better services, and a stronger ecosystem for the sector.
+
+`naqua-api` is one step in that direction.
+
+## Naqua and Raaqim
+
+This project is a collaboration between Naqua and [Raaqim (راقم)](https://raaqim.org), an open-source organization behind several Arabic-language software projects.
+
+We share an interest in making useful software available for others to build on. With `naqua-api`, that means providing the code, documenting how it works, and allowing developers to inspect, test, and improve it.
+
+We hope it becomes a useful starting point for developers working on Sharia-aware financial products, including applications we have not thought of ourselves.
+
+## Contact
 
 To report a security problem, use **Report a vulnerability** in the repository's Security tab, and keep the report private until the issue is fixed. Please do not open a public issue for a vulnerability. [`SECURITY.md`](.github/SECURITY.md) has the policy and its scope, and the [code of conduct](.github/CODE_OF_CONDUCT.md) covers how we treat each other here.
 
